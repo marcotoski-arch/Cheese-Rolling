@@ -3,24 +3,24 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Cheese Rolling — v5.5 (Lampioni + Facce + Classifica)</title>
+  <title>Cheese Rolling — Anna & Marco</title>
   <style>
     :root{--panel:rgba(15,20,35,.78);--accent:#ffcc00;--text:#eaf0ff;}
     html,body{height:100%;margin:0;background:#081024;color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;overflow:hidden}
     #wrap{position:relative;height:100%;}
     canvas{position:absolute;inset:0;}
 
-    .hud{position:absolute;left:12px;top:12px;display:flex;gap:10px;flex-wrap:wrap;align-items:center;
+    .hud{position:absolute;left:12px;top:12px;display:flex;gap:14px;align-items:center;
       background:rgba(0,0,0,.28);backdrop-filter:blur(6px);padding:10px 12px;border-radius:12px;border:1px solid rgba(255,255,255,.12);}
     .hud b{font-variant-numeric:tabular-nums;}
     .badge{display:inline-flex;gap:8px;align-items:center}
     .dot{width:10px;height:10px;border-radius:99px;background:var(--accent);box-shadow:0 0 14px rgba(255,204,0,.7)}
 
     .overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;}
-    .panel{width:min(780px,92vw);background:var(--panel);border:1px solid rgba(255,255,255,.14);
+    .panel{width:min(760px,94vw);background:var(--panel);border:1px solid rgba(255,255,255,.14);
       border-radius:18px;box-shadow:0 18px 60px rgba(0,0,0,.55);padding:18px 18px 16px;}
-    .panel h1{margin:0 0 14px;font-size:22px;letter-spacing:.2px;text-align:center}
-    .row{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;align-items:center}
+    .panel h1{margin:0 0 12px;font-size:22px;letter-spacing:.2px;text-align:center}
+    .row{display:flex;gap:12px;flex-wrap:wrap;justify-content:center}
     button{cursor:pointer;border:0;border-radius:14px;padding:11px 14px;font-weight:650;
       background:rgba(255,255,255,.10);color:var(--text);border:1px solid rgba(255,255,255,.16)}
     button:hover{background:rgba(255,255,255,.16)}
@@ -31,21 +31,31 @@
       background:rgba(0,0,0,.18);border:1px solid rgba(255,255,255,.12);font-size:12px;color:rgba(234,240,255,.85)}
     .kbd{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;background:rgba(0,0,0,.30);padding:2px 6px;border-radius:8px;border:1px solid rgba(255,255,255,.14)}
     .hidden{display:none}
-
-    .field{width:min(520px,92vw);margin:0 auto 10px}
     input{
-      width:100%; box-sizing:border-box;
-      padding:10px 12px; border-radius:12px;
+      width:min(520px,86vw);
+      padding:10px 12px;
+      border-radius:12px;
       border:1px solid rgba(255,255,255,.14);
-      background:rgba(0,0,0,.25); color:var(--text);
-      outline:none; font-size:14px;
+      background:rgba(0,0,0,.25);
+      color:var(--text);
+      outline:none;
+      font-size:14px;
     }
-
-    .lb{margin-top:12px;border-top:1px solid rgba(255,255,255,.12);padding-top:10px}
-    .lb h3{margin:6px 0 8px;font-size:14px;opacity:.92}
-    .lb ol{margin:0;padding-left:20px}
-    .lb li{margin:4px 0;opacity:.9}
-    .muted{opacity:.75;font-size:12px}
+    input::placeholder{color:rgba(234,240,255,.55)}
+    .lb{
+      width:min(520px,86vw);
+      margin:12px auto 0;
+      padding:10px 12px;
+      border-radius:14px;
+      border:1px solid rgba(255,255,255,.12);
+      background:rgba(0,0,0,.18);
+      text-align:left;
+    }
+    .lb h3{margin:0 0 8px;font-size:14px;opacity:.9}
+    .lb ol{margin:0;padding-left:18px}
+    .lb li{margin:3px 0;opacity:.9}
+    #castArt svg{width:min(360px,70vw);height:auto;display:block;margin:10px auto 2px;}
+    #castHint{opacity:.85;text-align:center;margin-top:6px}
   </style>
 </head>
 <body>
@@ -55,7 +65,7 @@
   <div class="hud" id="hud" style="display:none">
     <span class="badge"><span class="dot"></span><span><b id="meters">0</b> m</span></span>
     <span class="badge">💍 <b id="rings">0</b></span>
-    <span class="chip" id="playerChip">Giocatore: —</span>
+    <span class="chip" id="nameChip">Giocatore: —</span>
     <span class="chip" id="charChip">Personaggio: —</span>
     <span class="chip" id="envChip">Ambiente: —</span>
     <span class="chip" id="hintChip">—</span>
@@ -65,9 +75,8 @@
     <div class="panel">
       <h1>Cheese Rolling - Anna &amp; Marco</h1>
 
-      <div class="field">
-        <input id="nameInput" placeholder="Inserisci nome giocatore (es. Luca)" maxlength="24" />
-        <div class="muted">La classifica si salva su questo browser (localStorage). Se migliori il tuo record, si aggiorna.</div>
+      <div class="row" style="margin-bottom:10px">
+        <input id="playerNameInput" maxlength="18" placeholder="Inserisci nome giocatore (es. Marco)" />
       </div>
 
       <div class="row" style="margin-bottom:12px">
@@ -83,13 +92,12 @@
       <div id="howBox" class="hidden" style="margin-top:12px;text-align:center;color:rgba(234,240,255,.86)">
         <div style="margin-bottom:6px"><b>Obiettivo:</b> fai più metri possibile e raccogli più 💍 possibile.</div>
         <div><b>Montagna:</b> salta i cespugli · <b>Città:</b> salta le auto · <span class="kbd">Spazio</span>/<span class="kbd">↑</span> salta · <span class="kbd">↓</span> accovacciati.</div>
-        <div class="muted" style="margin-top:6px">Negli ultimi metri prima del cambio scenario vedrai arrivare il nuovo pattern sulla destra.</div>
+        <div style="margin-top:6px;opacity:.85">La transizione arriva prima dei 1000m con una “striscia preview” del nuovo terreno.</div>
       </div>
 
       <div class="lb">
-        <h3>🏆 Classifica (Top 10)</h3>
+        <h3>🏆 Classifica (migliori punteggi su questo dispositivo)</h3>
         <ol id="lbMenu"></ol>
-        <div class="muted" id="yourBestMenu"></div>
       </div>
     </div>
   </div>
@@ -97,19 +105,17 @@
   <div class="overlay hidden" id="gameover">
     <div class="panel">
       <h1 style="margin:0 0 10px">💥 Game Over</h1>
-      <div class="muted" style="text-align:center;margin-bottom:10px">
-        <span id="finalName">—</span> · <b id="finalMeters">0</b> m · 💍 <b id="finalRings">0</b>
-      </div>
-
-      <div class="row" style="margin-top:10px">
-        <button class="primary" id="retry">Riprova</button>
-        <button id="back">Torna al menu</button>
-      </div>
+      <div id="castArt"></div>
+      <div id="castHint">🤕 <b id="finalName">—</b> · <b id="finalMeters">0</b> m · 💍 <b id="finalRings">0</b></div>
 
       <div class="lb">
-        <h3>🏆 Classifica (Top 10)</h3>
+        <h3>🏆 Classifica</h3>
         <ol id="lbOver"></ol>
-        <div class="muted" id="yourBestOver"></div>
+      </div>
+
+      <div class="row" style="margin-top:12px">
+        <button class="primary" id="retry">Riprova</button>
+        <button id="back">Torna al menu</button>
       </div>
     </div>
   </div>
@@ -119,10 +125,12 @@
 (() => {
 
   /* =========================================================
-     FACCE REALI (file in ROOT del repo)
+     FOTO REALI (file nella ROOT del repo)
+     - "Foto Anna.jpg"
+     - "Foto Marco.jpg"
      ========================================================= */
   const faceAnna = new Image();
-  faceAnna.src = 'Foto%20Anna.jpg';   // robusto su GitHub Pages
+  faceAnna.src = 'Foto%20Anna.jpg';
   const faceMarco = new Image();
   faceMarco.src = 'Foto%20Marco.jpg';
 
@@ -131,7 +139,44 @@
      ========================================================= */
   const canvas = document.getElementById('c');
   const ctx = canvas.getContext('2d');
+
   let W=0,H=0,DPR=1;
+
+  // Cached pattern (performance)
+  let cobblePattern = null;
+  function makeCobblePattern(){
+    const s = 420;
+    const off = document.createElement('canvas');
+    off.width = s; off.height = s;
+    const g = off.getContext('2d');
+
+    const base = g.createLinearGradient(0,0,0,s);
+    base.addColorStop(0,'#7b8086');
+    base.addColorStop(0.65,'#535a63');
+    base.addColorStop(1,'#2e343c');
+    g.fillStyle = base;
+    g.fillRect(0,0,s,s);
+
+    g.globalAlpha = 0.22;
+    g.strokeStyle = 'rgba(255,255,255,0.18)';
+    g.lineWidth = 1;
+
+    const rows = 14;
+    const cols = 12;
+    for(let r=0;r<rows;r++){
+      const yy = 120 + r*18;
+      const wob = Math.sin(r*0.9)*6;
+      for(let c=0;c<cols;c++){
+        const xx = c*(s/cols) + wob;
+        const y = yy + Math.sin((c*0.7)+r)*2;
+        g.beginPath();
+        g.ellipse(xx, y, 18, 7, 0.08, 0, Math.PI*2);
+        g.stroke();
+      }
+    }
+
+    cobblePattern = ctx.createPattern(off,'repeat');
+  }
 
   function resize(){
     DPR = Math.min(2, window.devicePixelRatio || 1);
@@ -145,9 +190,10 @@
     makeCobblePattern();
   }
   addEventListener('resize', resize);
+  resize();
 
   /* =========================================================
-     UI REFERENCES
+     UI refs
      ========================================================= */
   const hud = document.getElementById('hud');
   const menu = document.getElementById('menu');
@@ -157,11 +203,17 @@
   const envChip = document.getElementById('envChip');
   const hintChip = document.getElementById('hintChip');
   const charChip = document.getElementById('charChip');
-  const playerChip = document.getElementById('playerChip');
+  const nameChip = document.getElementById('nameChip');
 
   const finalMetersEl = document.getElementById('finalMeters');
-  const finalRingsEl  = document.getElementById('finalRings');
-  const finalNameEl   = document.getElementById('finalName');
+  const finalRingsEl = document.getElementById('finalRings');
+  const finalNameEl  = document.getElementById('finalName');
+  const castArt = document.getElementById('castArt');
+
+  const lbMenu = document.getElementById('lbMenu');
+  const lbOver = document.getElementById('lbOver');
+
+  const nameInput = document.getElementById('playerNameInput');
 
   const pickAnna = document.getElementById('pickAnna');
   const pickMarco = document.getElementById('pickMarco');
@@ -170,70 +222,58 @@
   const howBox = document.getElementById('howBox');
   const retryBtn = document.getElementById('retry');
   const backBtn = document.getElementById('back');
-  const nameInput = document.getElementById('nameInput');
-
-  const lbMenu = document.getElementById('lbMenu');
-  const lbOver = document.getElementById('lbOver');
-  const yourBestMenu = document.getElementById('yourBestMenu');
-  const yourBestOver = document.getElementById('yourBestOver');
 
   /* =========================================================
      LEADERBOARD (localStorage)
      ========================================================= */
-  const LB_KEY = 'cheese_rolling_leaderboard_v1';
+  const SCORE_KEY = 'cheeseRolling_scores_v1';
 
   function loadScores(){
-    try { return JSON.parse(localStorage.getItem(LB_KEY) || '{}'); }
+    try { return JSON.parse(localStorage.getItem(SCORE_KEY) || '{}'); }
     catch { return {}; }
   }
-  function saveBest(name, score){
-    const data = loadScores();
-    const prev = data[name];
-    if(prev == null || score > prev){
-      data[name] = score;
-      localStorage.setItem(LB_KEY, JSON.stringify(data));
-      return true; // improved
+  function saveScores(obj){
+    localStorage.setItem(SCORE_KEY, JSON.stringify(obj));
+  }
+  function updateBestScore(player, score){
+    const s = loadScores();
+    const prev = s[player];
+    if(prev === undefined || score > prev){
+      s[player] = score;
+      saveScores(s);
+      return true; // updated
     }
-    return false;
+    return false; // unchanged
   }
-  function top10(){
-    const data = loadScores();
-    return Object.entries(data)
-      .map(([n,s])=>({name:n,score:Math.floor(s)}))
-      .sort((a,b)=>b.score-a.score)
-      .slice(0,10);
+  function topList(limit=10){
+    const s = loadScores();
+    return Object.entries(s)
+      .sort((a,b)=>b[1]-a[1])
+      .slice(0,limit);
   }
-  function bestOf(name){
-    const data = loadScores();
-    return data[name] == null ? null : Math.floor(data[name]);
-  }
-  function renderLeaderboard(listEl, bestEl, currentName){
-    const data = top10();
-    listEl.innerHTML = '';
-    if(data.length===0){
-      const li=document.createElement('li');
-      li.textContent='Nessun punteggio ancora';
-      listEl.appendChild(li);
-    } else {
-      data.forEach((r,i)=>{
-        const li=document.createElement('li');
-        li.textContent = `${r.name} — ${r.score} m`;
-        listEl.appendChild(li);
-      });
+  function renderLB(targetOl){
+    targetOl.innerHTML = '';
+    const arr = topList(10);
+    if(arr.length === 0){
+      const li = document.createElement('li');
+      li.textContent = 'Nessun punteggio ancora — gioca tu il primo!';
+      targetOl.appendChild(li);
+      return;
     }
-    const best = currentName ? bestOf(currentName) : null;
-    bestEl.textContent = currentName
-      ? (best==null ? `Il tuo record: —` : `Il tuo record: ${best} m`)
-      : '';
+    for(const [name,score] of arr){
+      const li = document.createElement('li');
+      li.textContent = `${name} — ${score} m`;
+      targetOl.appendChild(li);
+    }
   }
 
   /* =========================================================
-     GAME STATE
+     GAME state
      ========================================================= */
   const STATE={MENU:0,RUN:1,OVER:2};
   let state=STATE.MENU;
 
-  let playerName = '';
+  let playerName = 'Anonimo';
   let character='Anna';
 
   function setCharacter(c){
@@ -245,19 +285,15 @@
   setCharacter('Anna');
   pickAnna.onclick=()=>setCharacter('Anna');
   pickMarco.onclick=()=>setCharacter('Marco');
-
   howBtn.onclick=()=>howBox.classList.toggle('hidden');
 
   /* =========================================================
-     WORLD GEOMETRY
+     WORLD
      ========================================================= */
   const groundBase=()=>H*0.80;
   const slope=()=>H*0.18/W;
   const groundY=(x)=>groundBase()+slope()*(x-W*0.25);
 
-  /* =========================================================
-     HELPERS
-     ========================================================= */
   const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
   const lerp=(a,b,t)=>a+(b-a)*t;
   const smooth=(t)=>t*t*(3-2*t);
@@ -283,41 +319,28 @@
     return dx*dx+dy*dy <= cr*cr;
   }
 
-  /* =========================================================
-     ENV MODES + PREVIEW STRIP
-     ========================================================= */
-  // 0 mountain, 1 city
+  // Modes (0 montagna, 1 città)
   function envMode(){ return (Math.floor(distMeters/1000) % 2); }
   function nextEnvMode(){ return ((Math.floor(distMeters/1000)+1) % 2); }
 
+  // Preview strip ultimo tratto
   function previewFactor(){
     const local = distMeters % 1000;
-    const start = 840; // last 160m
+    const start = 840;
     if(local <= start) return 0;
     return smooth(clamp((local-start)/(1000-start),0,1));
   }
 
-  /* =========================================================
-     PHYSICS / ENTITIES
-     ========================================================= */
+  // Physics
   const metersPerPixel=0.05;
   const gravity=2550;
   const jumpV=1020;
 
-  const player={
-    x:()=>W*0.22,
-    y:0, vy:0,
-    w:36,
-    h:84,
-    crouch:false,
-    onGround:true,
-    runT:0
-  };
-
+  const player={x:()=>W*0.22, y:0, vy:0, w:36, h:84, crouch:false, onGround:true, runT:0};
   const cheese={x:0,y:0,r:18,rot:0};
 
-  let obstacles=[]; // bush (mountain) or car (city)
-  let rings=[];
+  let obstacles=[]; // bush o car
+  let rings=[];     // collectible
   let signs=[];
 
   let nextObs=0.75, nextRing=1.00, nextMilestone=500;
@@ -325,51 +348,46 @@
   let distMeters=0, ringsCount=0;
   let lastMode=0;
 
-  /* =========================================================
-     COBBLE PATTERN (cached)
-     ========================================================= */
-  let cobblePattern = null;
-  function makeCobblePattern(){
-    const s = 420;
-    const off = document.createElement('canvas');
-    off.width = s; off.height = s;
-    const g = off.getContext('2d');
+  // Foot lock
+  let bodyOffsetX=0;
+  const footLock={active:false, leg:'R', lockScreenX:0, lastTR:0.9, lastTL:0.4, stanceEnd:0.62};
 
-    const base = g.createLinearGradient(0,0,0,s);
-    base.addColorStop(0,'#7b8086');
-    base.addColorStop(0.65,'#535a63');
-    base.addColorStop(1,'#2e343c');
-    g.fillStyle = base;
-    g.fillRect(0,0,s,s);
-
-    g.globalAlpha = 0.22;
-    g.strokeStyle = 'rgba(255,255,255,0.18)';
-    g.lineWidth = 1;
-    const rows = 14;
-    const cols = 12;
-    for(let r=0;r<rows;r++){
-      const yy = 120 + r*18;
-      const wob = Math.sin(r*0.9)*6;
-      for(let c=0;c<cols;c++){
-        const xx = c*(s/cols) + wob;
-        const y = yy + Math.sin((c*0.7)+r)*2;
-        g.beginPath();
-        g.ellipse(xx, y, 18, 7, 0.08, 0, Math.PI*2);
-        g.stroke();
-      }
-    }
-    cobblePattern = ctx.createPattern(off,'repeat');
+  function resetRun(){
+    obstacles=[]; rings=[]; signs=[];
+    speed=455; distMeters=0; ringsCount=0;
+    nextObs=0.75; nextRing=1.00; nextMilestone=500;
+    player.vy=0; player.crouch=false; player.runT=0; player.onGround=true; player.h=84;
+    player.y = groundY(player.x()) - player.h;
+    cheese.rot=0;
+    bodyOffsetX=0;
+    footLock.active=false; footLock.leg='R'; footLock.lastTR=0.9; footLock.lastTL=0.4;
+    lastMode=0;
+    signs.push({x: W*0.65, label: 'Cheese Rolling - Start', kind:'start'});
   }
 
-  /* =========================================================
-     INPUT
-     ========================================================= */
-  function jump(){
-    if(player.onGround){
-      player.vy = -jumpV;
-      player.onGround=false;
-    }
+  function start(){
+    // leggi nome
+    const raw = (nameInput.value || '').trim();
+    playerName = raw ? raw.slice(0,18) : 'Anonimo';
+    nameChip.textContent = 'Giocatore: ' + playerName;
+
+    resetRun();
+    hud.style.display='flex';
+    menu.classList.add('hidden');
+    over.classList.add('hidden');
+    state=STATE.RUN;
   }
+  startBtn.onclick=start;
+  retryBtn.onclick=start;
+  backBtn.onclick=()=>{
+    state=STATE.MENU;
+    hud.style.display='none';
+    over.classList.add('hidden');
+    menu.classList.remove('hidden');
+    renderLB(lbMenu);
+  };
+
+  function jump(){ if(player.onGround){ player.vy=-jumpV; player.onGround=false; } }
 
   addEventListener('keydown',(e)=>{
     if(['Space','ArrowUp','ArrowDown'].includes(e.code)) e.preventDefault();
@@ -388,7 +406,7 @@
   });
 
   /* =========================================================
-     SPAWNS
+     SPAWN
      ========================================================= */
   function spawnBush(){
     const h=50+Math.random()*60;
@@ -421,7 +439,7 @@
   }
 
   /* =========================================================
-     BACKGROUNDS
+     BACKGROUND + GROUND
      ========================================================= */
   function drawSkyDay(){
     const sky = ctx.createLinearGradient(0,0,0,H);
@@ -461,21 +479,6 @@
       ctx.fill();
       ctx.restore();
     }
-  }
-
-  // City: ONLY sky + distant lamppost silhouettes (no glow)
-  function drawBackgroundCity(t){
-    drawSkyDay();
-    drawLampioni(t);
-
-    ctx.save();
-    ctx.globalAlpha=0.08;
-    const fog=ctx.createLinearGradient(0,H*0.30,0,H*0.85);
-    fog.addColorStop(0,'rgba(255,255,255,0)');
-    fog.addColorStop(1,'rgba(255,255,255,0.14)');
-    ctx.fillStyle=fog;
-    ctx.fillRect(0,0,W,H);
-    ctx.restore();
   }
 
   function drawLampioni(t){
@@ -518,14 +521,25 @@
     ctx.restore();
   }
 
+  function drawBackgroundCity(t){
+    drawSkyDay();
+    drawLampioni(t);
+
+    ctx.save();
+    ctx.globalAlpha=0.08;
+    const fog=ctx.createLinearGradient(0,H*0.30,0,H*0.85);
+    fog.addColorStop(0,'rgba(255,255,255,0)');
+    fog.addColorStop(1,'rgba(255,255,255,0.14)');
+    ctx.fillStyle=fog;
+    ctx.fillRect(0,0,W,H);
+    ctx.restore();
+  }
+
   function drawBackground(mode, t){
     if(mode===0) drawBackgroundMountain(t);
     else drawBackgroundCity(t);
   }
 
-  /* =========================================================
-     GROUNDS
-     ========================================================= */
   function drawGroundMountain(){
     const y0=groundY(0), y1=groundY(W);
     ctx.save();
@@ -553,7 +567,7 @@
   function drawGroundCity(){
     const y0=groundY(0), y1=groundY(W);
     ctx.save();
-    ctx.fillStyle=cobblePattern || '#444';
+    ctx.fillStyle=cobblePattern;
     ctx.beginPath();
     ctx.moveTo(0,y0); ctx.lineTo(W,y1); ctx.lineTo(W,H); ctx.lineTo(0,H); ctx.closePath();
     ctx.fill();
@@ -573,7 +587,7 @@
 
   function drawUpcomingPreview(){
     const f = previewFactor();
-    if(f<=0){ return; }
+    if(f<=0) return;
 
     const next = nextEnvMode();
     const stripW = lerp(0, W*0.42, f);
@@ -607,7 +621,7 @@
   }
 
   /* =========================================================
-     SIGNS (start + every 500m)
+     SIGNS / OBSTACLES / RINGS / CHEESE
      ========================================================= */
   function drawSign(s){
     const gy=groundY(s.x);
@@ -654,17 +668,11 @@
       ctx.font='800 14px system-ui';
       ctx.fillText('RUN!',s.x,topY+boardH-14);
     }
-
     ctx.restore();
   }
 
-  /* =========================================================
-     DRAW OBSTACLES + RINGS + CHEESE
-     ========================================================= */
   function drawBush(o){
     const baseY=groundY(o.x);
-    const topY=baseY-o.h;
-
     ctx.save();
     ctx.globalAlpha=0.25;
     ctx.fillStyle='rgba(0,0,0,0.6)';
@@ -677,7 +685,7 @@
     const cy=baseY-o.h*0.50;
 
     ctx.save();
-    const grad=ctx.createLinearGradient(0,topY,0,baseY);
+    const grad=ctx.createLinearGradient(0,baseY-o.h,0,baseY);
     grad.addColorStop(0,'#3d7a3a');
     grad.addColorStop(1,'#163318');
     ctx.fillStyle=grad;
@@ -694,7 +702,6 @@
       ctx.ellipse(cx+ox, cy+oy, rx, ry, 0, 0, Math.PI*2);
       ctx.fill();
     }
-
     ctx.restore();
   }
 
@@ -731,7 +738,6 @@
     ctx.fillStyle='#141519';
     ctx.beginPath(); ctx.arc(x+o.w*0.24, gy-4, 8, 0, Math.PI*2); ctx.fill();
     ctx.beginPath(); ctx.arc(x+o.w*0.76, gy-4, 8, 0, Math.PI*2); ctx.fill();
-
     ctx.restore();
   }
 
@@ -813,17 +819,133 @@
   }
 
   /* =========================================================
-     RUNNER + REAL FACE HEAD (integrato correttamente)
+     RUNNER (con faccia vera) – versione corretta
      ========================================================= */
+  function solveIK(hip, footPos, l1, l2, bend){
+    let dx = footPos.x - hip.x;
+    let dy = footPos.y - hip.y;
+    let d = Math.hypot(dx,dy);
+    d = clamp(d, 0.0001, l1+l2-0.0001);
+    const a = Math.atan2(dy,dx);
+    const cosH = clamp((l1*l1 + d*d - l2*l2) / (2*l1*d), -1, 1);
+    const hipOff = Math.acos(cosH);
+    const hipAng = a + bend*hipOff;
+    return {knee:{x: hip.x + Math.cos(hipAng)*l1, y: hip.y + Math.sin(hipAng)*l1}};
+  }
+
+  function drawFootShape(x,y,ang){
+    ctx.save();
+    ctx.translate(x,y);
+    ctx.rotate(ang);
+    ctx.fillStyle='#141519';
+    roundRect(-4,-3,18,6,3);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function drawLegIK(hip, footPos, pants, bend, alpha, footAng){
+    const l1=30, l2=31;
+    const ik = solveIK(hip, footPos, l1, l2, bend);
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.strokeStyle = pants;
+    ctx.lineWidth = 5;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(hip.x, hip.y);
+    ctx.lineTo(ik.knee.x, ik.knee.y);
+    ctx.lineTo(footPos.x, footPos.y);
+    ctx.stroke();
+    ctx.restore();
+    drawFootShape(footPos.x, footPos.y, footAng);
+  }
+
+  function drawArm(x0,y0,l1,l2,ang,color){
+    ctx.save();
+    ctx.strokeStyle=color;
+    ctx.lineWidth=4;
+    ctx.lineCap='round';
+    const x1=x0+Math.cos(ang)*l1;
+    const y1=y0+Math.sin(ang)*l1;
+    const ang2=ang+(Math.sin(ang*1.6)*0.28);
+    const x2=x1+Math.cos(ang2)*l2;
+    const y2=y1+Math.sin(ang2)*l2;
+    ctx.beginPath();
+    ctx.moveTo(x0,y0);
+    ctx.lineTo(x1,y1);
+    ctx.lineTo(x2,y2);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function computeLegT(phase, offset){
+    let t = ((phase+offset)/(Math.PI*2)) % 1;
+    if(t<0) t += 1;
+    return t;
+  }
+
+  function legKinematics(phase, offset, stride, lift, bodyH, stanceEnd){
+    const t = computeLegT(phase, offset);
+    const ground = bodyH - 2;
+    let x,y,footAng,inStance;
+    if(t < stanceEnd){
+      inStance=true;
+      const u=smooth(t/stanceEnd);
+      x = -stride*0.22;
+      y = ground + Math.sin(u*Math.PI)*2.2;
+      const toe = clamp((u-0.78)/0.22,0,1);
+      y -= toe*3.2;
+      footAng = lerp(0.02, 0.42, toe);
+    } else {
+      inStance=false;
+      const u=smooth((t-stanceEnd)/(1-stanceEnd));
+      x = lerp(-stride*0.18, stride*0.70, u);
+      y = ground - Math.sin(u*Math.PI)*lift;
+      footAng = lerp(-0.55, 0.08, u);
+    }
+    return {t,inStance,x,y,footAng};
+  }
+
   function drawRunner(px, py, crouch, phase, name){
     ctx.save();
 
-    // posiziona il personaggio nel mondo
     const angSlope = Math.atan(slope());
     const bodyH = crouch ? 66 : 84;
 
-    ctx.translate(px, py);
-    ctx.rotate(angSlope*0.36 + Math.sin(phase+0.4)*0.055);
+    const stride=28;
+    const lift=18;
+    const stanceEnd=footLock.stanceEnd;
+
+    const L=legKinematics(phase, Math.PI, stride, lift, bodyH, stanceEnd);
+    const R=legKinematics(phase, 0.0,   stride, lift, bodyH, stanceEnd);
+
+    const wrapR = footLock.lastTR > R.t;
+    const wrapL = footLock.lastTL > L.t;
+    if(wrapR){ footLock.active=true; footLock.leg='R'; footLock.lockScreenX = px + bodyOffsetX + R.x; }
+    else if(wrapL){ footLock.active=true; footLock.leg='L'; footLock.lockScreenX = px + bodyOffsetX + L.x; }
+
+    if(footLock.active){
+      const still = (footLock.leg==='R') ? R.inStance : L.inStance;
+      if(!still) footLock.active=false;
+    }
+
+    if(footLock.active){
+      const fx = (footLock.leg==='R') ? R.x : L.x;
+      const desired = footLock.lockScreenX - (px + fx);
+      bodyOffsetX = lerp(bodyOffsetX, desired, 0.22);
+    } else {
+      bodyOffsetX = lerp(bodyOffsetX, 0, 0.08);
+    }
+
+    footLock.lastTR = R.t;
+    footLock.lastTL = L.t;
+
+    const hipBob = (Math.sin(phase*2)*2.0 + Math.sin(phase*4+0.6)*0.65);
+    const pelvisShift = Math.sin(phase)*2.6;
+    const torsoRot = Math.sin(phase+0.4)*0.055;
+
+    ctx.translate(px + bodyOffsetX, py + hipBob);
+    ctx.rotate(angSlope*0.36 + torsoRot);
 
     const shirt = (name==='Anna') ? '#7a5cff' : '#2f7bff';
     const pants = '#2b2f3a';
@@ -833,10 +955,8 @@
     ctx.fillStyle = shirt;
     roundRect(-12, 18, 24, crouch?30:34, 8);
     ctx.fill();
-
-    // pelvis
     ctx.fillStyle = pants;
-    roundRect(-13, 48, 26, 14, 7);
+    roundRect(-13 + pelvisShift*0.15, 48, 26, 14, 7);
     ctx.fill();
 
     // neck
@@ -844,31 +964,35 @@
     roundRect(-4, 10, 8, 10, 4);
     ctx.fill();
 
-    // HEAD (face or fallback)
-    const face = (name === 'Anna') ? faceAnna : faceMarco;
+    // head with face
+    const face = (name==='Anna') ? faceAnna : faceMarco;
     const faceOk = face && face.complete && face.naturalWidth > 0;
 
     if(faceOk){
       ctx.save();
       ctx.beginPath();
-      ctx.arc(0,0,12,0,Math.PI*2);
+      ctx.arc(0, 0, 12, 0, Math.PI*2);
       ctx.clip();
       ctx.drawImage(face, -12, -12, 24, 24);
       ctx.restore();
 
       ctx.save();
-      ctx.globalAlpha = 0.22;
-      ctx.strokeStyle = 'rgba(0,0,0,0.55)';
-      ctx.lineWidth = 2;
+      ctx.globalAlpha=0.22;
+      ctx.strokeStyle='rgba(0,0,0,0.55)';
+      ctx.lineWidth=2;
       ctx.beginPath();
       ctx.arc(0,0,12,0,Math.PI*2);
       ctx.stroke();
       ctx.restore();
     } else {
+      ctx.fillStyle = skin;
       ctx.beginPath();
       ctx.arc(0,0,12,0,Math.PI*2);
       ctx.fill();
-      // hair in fallback
+    }
+
+    // hair only if face missing (avoid covering)
+    if(!faceOk){
       ctx.fillStyle = (name==='Anna') ? '#2d1f1b' : '#3a2a1e';
       ctx.beginPath();
       ctx.arc(-2,-2,13, Math.PI*1.05, Math.PI*1.95);
@@ -877,244 +1001,42 @@
 
     // arms
     const armSwing = Math.sin(phase + Math.PI)*0.95;
-    ctx.strokeStyle = skin;
-    ctx.lineWidth=4;
-    ctx.lineCap='round';
+    const shoulderRoll = Math.sin(phase*2)*0.10;
+    drawArm( 10, 28, 19, 18,  0.55 + armSwing*0.55 + shoulderRoll, skin);
+    drawArm(-10, 30, 19, 18, -0.35 - armSwing*0.55 - shoulderRoll, skin);
 
-    function arm(x0,y0,dir){
-      const a = dir*(0.55 + armSwing*0.55);
-      const x1=x0+Math.cos(a)*19;
-      const y1=y0+Math.sin(a)*19;
-      const a2=a+(Math.sin(a*1.6)*0.28);
-      const x2=x1+Math.cos(a2)*18;
-      const y2=y1+Math.sin(a2)*18;
-      ctx.beginPath();
-      ctx.moveTo(x0,y0); ctx.lineTo(x1,y1); ctx.lineTo(x2,y2);
-      ctx.stroke();
+    // legs
+    const hipL = {x:-7 + pelvisShift*0.45, y:60};
+    const hipR = {x: 7 + pelvisShift*0.45, y:60};
+    const footLPos = {x: hipL.x + L.x, y: L.y};
+    const footRPos = {x: hipR.x + R.x, y: R.y};
+
+    const depthL = L.inStance ? 0.88 : 1.0;
+    const depthR = R.inStance ? 0.88 : 1.0;
+    const LfootAng = L.inStance ? L.footAng*0.55 : L.footAng;
+    const RfootAng = R.inStance ? R.footAng*0.55 : R.footAng;
+
+    if(L.inStance && !R.inStance){
+      drawLegIK(hipL, footLPos, pants, -1, 0.85, LfootAng);
+      drawLegIK(hipR, footRPos, pants, +1, 1.0, RfootAng);
+    } else if(R.inStance && !L.inStance){
+      drawLegIK(hipR, footRPos, pants, +1, 0.85, RfootAng);
+      drawLegIK(hipL, footLPos, pants, -1, 1.0, LfootAng);
+    } else {
+      drawLegIK(hipL, footLPos, pants, -1, 0.95*depthL, LfootAng);
+      drawLegIK(hipR, footRPos, pants, +1, 0.95*depthR, RfootAng);
     }
-    arm( 10,28, +1);
-    arm(-10,30, -1);
-
-    // legs (simple)
-    ctx.strokeStyle = pants;
-    ctx.lineWidth = 5;
-    const leg = Math.sin(phase)*6;
-    ctx.beginPath();
-    ctx.moveTo(-6, 60); ctx.lineTo(-6+leg, bodyH);
-    ctx.moveTo( 6, 60); ctx.lineTo( 6-leg, bodyH);
-    ctx.stroke();
-
-    // feet
-    ctx.fillStyle='#141519';
-    roundRect(-10+leg, bodyH-2, 18, 6, 3); ctx.fill();
-    roundRect( -2-leg, bodyH-2, 18, 6, 3); ctx.fill();
 
     ctx.restore();
   }
 
   /* =========================================================
-     MENU / START / END
+     GAME OVER ART (ingessato)
      ========================================================= */
-  function resetRun(){
-    obstacles=[]; rings=[]; signs=[];
-    speed=455; distMeters=0; ringsCount=0;
-    nextObs=0.75; nextRing=1.00; nextMilestone=500;
-    player.vy=0; player.crouch=false; player.runT=0; player.onGround=true; player.h=84;
-    player.y = groundY(player.x()) - player.h;
-    cheese.rot=0;
-    lastMode=envMode();
-    signs.push({x: W*0.65, label: 'Cheese Rolling - Start', kind:'start'});
-  }
-
-  function start(){
-    playerName = (nameInput.value || '').trim();
-    if(!playerName) playerName = 'Anonimo';
-    playerChip.textContent = 'Giocatore: ' + playerName;
-
-    resetRun();
-    hud.style.display='flex';
-    menu.classList.add('hidden');
-    over.classList.add('hidden');
-    state=STATE.RUN;
-  }
-
-  startBtn.onclick=start;
-  retryBtn.onclick=start;
-
-  backBtn.onclick=()=>{
-    state=STATE.MENU;
-    hud.style.display='none';
-    over.classList.add('hidden');
-    menu.classList.remove('hidden');
-    renderLeaderboard(lbMenu, yourBestMenu, (nameInput.value||'').trim() || null);
-  };
-
-  function endGame(){
-    state=STATE.OVER;
-    over.classList.remove('hidden');
-
-    const score = Math.floor(distMeters);
-    finalMetersEl.textContent = score.toString();
-    finalRingsEl.textContent  = ringsCount.toString();
-    finalNameEl.textContent   = `${playerName} (${character})`;
-
-    saveBest(playerName, score);
-
-    renderLeaderboard(lbOver, yourBestOver, playerName);
-  }
-
-  /* =========================================================
-     MAIN LOOP
-     ========================================================= */
-  let last = performance.now();
-  function frame(now){
-    const dt=Math.min(0.033,(now-last)/1000);
-    last=now;
-
-    if(state===STATE.RUN) update(dt, now);
-    render(now);
-
-    requestAnimationFrame(frame);
-  }
-
-  function update(dt, now){
-    // speed and distance
-    speed += speedAdd*dt;
-    const dx = speed*dt;
-    distMeters += dx*metersPerPixel;
-
-    // scenario switch (we WARN via preview strip; here we only clear obstacles)
-    const mode = envMode();
-    if(mode !== lastMode){
-      obstacles = [];
-      nextObs = 0.35;
-      lastMode = mode;
-    }
-
-    // hint
-    hintChip.textContent = (mode===0) ? 'Montagna: salta i cespugli' : 'Città: salta le auto';
-
-    // player physics
-    const px = player.x();
-    const base = groundY(px);
-    player.h = player.crouch ? 66 : 84;
-
-    player.vy += gravity*dt;
-    player.y += player.vy*dt;
-
-    const groundTop = base - player.h;
-    if(player.y >= groundTop){ player.y = groundTop; player.vy = 0; player.onGround = true; }
-    else player.onGround = false;
-
-    // run animation
-    const pace=(speed/520);
-    if(player.onGround) player.runT += dt*6.9*pace;
-
-    // cheese ahead (hug ground with bounce)
-    cheese.x = px + 140;
-    const gY = groundY(cheese.x);
-    const rough = (Math.sin(cheese.x*0.12) + Math.sin(cheese.x*0.045)*0.7 + Math.sin(now*0.004))*0.5;
-    const micro = Math.abs(Math.sin(cheese.x*0.21 + now*0.003))*0.6;
-    const hop = Math.max(0, rough-0.10)*7.0 + micro*2.0;
-    cheese.y = gY - cheese.r - 2 + hop;
-    cheese.rot += (speed*dt)/(cheese.r) * (0.85 + hop*0.02);
-
-    // spawns
-    nextObs -= dt;
-    if(nextObs <= 0){
-      if(mode===0) spawnBush();
-      else spawnCar();
-      nextObs = (mode===0 ? (0.78 + Math.random()*0.92) : (0.85 + Math.random()*0.95));
-      if(distMeters>260) nextObs -= 0.08;
-    }
-
-    nextRing -= dt;
-    if(nextRing <= 0){
-      if(Math.random() < 0.70) spawnRing();
-      nextRing = 1.05 + Math.random()*1.30;
-    }
-
-    while(distMeters >= nextMilestone){
-      spawnMilestoneSign(nextMilestone);
-      nextMilestone += 500;
-    }
-
-    // move world entities left
-    for(const o of obstacles) o.x -= dx;
-    for(const r of rings){ r.x -= dx; r.spin += dt*3.0; }
-    for(const s of signs){ s.x -= dx; }
-
-    // caps
-    if(obstacles.length>18) obstacles = obstacles.slice(-18);
-    if(rings.length>24) rings = rings.slice(-24);
-
-    // clean offscreen
-    obstacles = obstacles.filter(o=>o.x + (o.w||200) > -160);
-    rings = rings.filter(r=>r.x + r.r > -80);
-    signs = signs.filter(s=>s.x + 320 > -160);
-
-    // collisions
-    const hitPad=6;
-    const pRect={x:px-player.w/2+hitPad,y:player.y+10,w:player.w-hitPad*2,h:player.h-18};
-
-    for(const o of obstacles){
-      if(o.type==='bush'){
-        const by = groundY(o.x) - o.h;
-        const bRect={x:o.x+12,y:by+8,w:o.w-24,h:o.h-14};
-        if(rectsOverlap(pRect,bRect)){ endGame(); return; }
-      } else {
-        const gy2 = groundY(o.x);
-        const carRect = {x:o.x, y:gy2 - o.h - o.h*0.55, w:o.w, h:o.h + o.h*0.55};
-        if(rectsOverlap(pRect, carRect)){ endGame(); return; }
-      }
-    }
-
-    for(let i=rings.length-1;i>=0;i--){
-      const r=rings[i];
-      if(circleRectOverlap(r.x,r.y,r.r+7,pRect.x,pRect.y,pRect.w,pRect.h)){
-        rings.splice(i,1);
-        ringsCount++;
-      }
-    }
-
-    metersEl.textContent = Math.floor(distMeters).toString();
-    ringsEl.textContent = ringsCount.toString();
-  }
-
-  function render(now){
-    const mode = envMode();
-    envChip.textContent = 'Ambiente: ' + (mode===0 ? 'Montagna' : 'Città');
-
-    drawBackground(mode, now);
-    drawGround(mode);
-    drawUpcomingPreview();
-
-    // signs
-    for(const s of signs) drawSign(s);
-
-    // rings
-    for(const r of rings) drawRing(r);
-
-    // obstacles
-    for(const o of obstacles){
-      if(o.type==='bush') drawBush(o);
-      else drawCar(o);
-    }
-
-    if(state!==STATE.MENU){
-      drawCheese();
-      drawRunner(player.x(), player.y, player.crouch, player.runT, character);
-    }
-  }
-
-  /* =========================================================
-     INIT
-     ========================================================= */
-  renderLeaderboard(lbMenu, yourBestMenu, null);
-  resize();
-  requestAnimationFrame(frame);
-
-})();
-</script>
-</body>
-</html>
+  function castSVG(name){
+    const shirt = (name==='Anna') ? '#7a5cff' : '#2f7bff';
+    const hair  = (name==='Anna') ? '#2d1f1b' : '#3a2a1e';
+    return `
+<svg viewBox="0 0 420 260" xmlns="http://www.w3.org/2000/svg" aria-label="Personaggio ingessato">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1"
