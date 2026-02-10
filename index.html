@@ -98,7 +98,7 @@
           <span class="kbd">↓</span> o <b>Swipe giù</b> accovacciati.
         </div>
         <div style="margin-top:6px;opacity:.85">
-          Consigli: puoi saltare anche appena dopo il bordo (coyote time) e “buffer” del salto prima di atterrare.
+          Consigli: coyote time + jump buffer (salti più reattivi).
         </div>
       </div>
 
@@ -126,7 +126,7 @@
         <button class="primary" id="retry">Riprova</button>
         <button id="back">Torna al menu</button>
       </div>
-      <div class="small">Suggerimento: prova a usare ↓/swipe giù per evitare i colpi “bassi” 😉</div>
+      <div class="small">Suggerimento: usa ↓/swipe giù nei momenti stretti 😉</div>
     </div>
   </div>
 </div>
@@ -137,14 +137,11 @@
 
   /* =========================================================
      FOTO REALI (file nella ROOT)
-     - "Foto Anna.jpg"
-     - "Foto Marco.jpg"
      ========================================================= */
   const faceAnna = new Image();
   faceAnna.src = 'Foto%20Anna.jpg';
   const faceMarco = new Image();
   faceMarco.src = 'Foto%20Marco.jpg';
-  // Evita loop di errori su immagini mancanti
   faceAnna.onerror = () => (faceAnna._bad = true);
   faceMarco.onerror = () => (faceMarco._bad = true);
 
@@ -156,7 +153,6 @@
 
   let W=0, H=0, DPR=1;
 
-  // Cached pattern (performance)
   let cobblePattern = null;
   function makeCobblePattern(){
     const s = 420;
@@ -188,12 +184,10 @@
         g.stroke();
       }
     }
-
     cobblePattern = ctx.createPattern(off,'repeat');
   }
 
   function resize(){
-    // DPR un po' più gentile su mobile per FPS migliori
     DPR = Math.min(1.5, window.devicePixelRatio || 1);
     W = Math.floor(window.innerWidth);
     H = Math.floor(window.innerHeight);
@@ -203,7 +197,6 @@
     canvas.style.width = W+'px';
     canvas.style.height = H+'px';
     ctx.setTransform(DPR,0,0,DPR,0,0);
-
     makeCobblePattern();
   }
   addEventListener('resize', resize);
@@ -243,7 +236,7 @@
   /* =========================================================
      LEADERBOARD (localStorage)
      ========================================================= */
-  const SCORE_KEY = 'cheeseRolling_scores_v2';
+  const SCORE_KEY = 'cheeseRolling_scores_v3';
 
   function loadScores(){
     try { return JSON.parse(localStorage.getItem(SCORE_KEY) || '{}'); }
@@ -318,12 +311,12 @@
   const groundBase=()=>H*0.80;
   const slope=()=>H*0.18/W;
   const groundY=(x)=>groundBase()+slope()*(x-W*0.25);
+  const groundAngle=()=>Math.atan(slope());
+  const groundLenFactor=()=>Math.hypot(1, slope()); // distanza lungo la pendenza per 1px orizzontale
 
-  // Modes (0 montagna, 1 città)
   function envMode(){ return (Math.floor(distMeters/1000) % 2); }
   function nextEnvMode(){ return ((Math.floor(distMeters/1000)+1) % 2); }
 
-  // Preview strip ultimo tratto
   function previewFactor(){
     const local = distMeters % 1000;
     const start = 840;
@@ -353,14 +346,13 @@
   howBtn.onclick=()=>howBox.classList.toggle('hidden');
 
   /* =========================================================
-     Physics (stabili e più giocabili)
+     Physics
      ========================================================= */
-  const gravity=2600;      // un filo più “snappy”
+  const gravity=2600;
   const jumpV=1060;
   const crouchH = 60;
   const standH  = 84;
 
-  // coyote time + jump buffer
   let coyote = 0;
   let jumpBuf = 0;
 
@@ -372,35 +364,36 @@
     runT:0
   };
 
-  const cheese={x:0,y:0,r:18,rot:0};
+  const cheese={x:0,y:0,r:20,rot:0}; // r leggermente più grande = più "peso" visivo
 
   let obstacles=[]; // bush/car
   let rings=[];     // collectibles
   let signs=[];
+  let deco=[];      // alberi decorativi (pochi, non ostacoli)
 
-  // progress
-  let speed=460;          // px/s
-  let speedAdd=10.0;      // accel per 100m
+  let speed=468;     // px/s
+  let speedAdd=11.0; // accel per 100m
   let distMeters=0;
   let ringsCount=0;
 
-  let nextObsAt=120;      // metri
+  let nextObsAt=95;   // ostacoli prima
   let nextRingAt=80;
   let nextMilestone=500;
 
-  // “fairness” spawn gap
-  const MIN_OBS_GAP_PX = 260;
+  // più frequenti ostacoli (come richiesto), ma con safety gap
+  const MIN_OBS_GAP_PX = 210; // prima 260 -> più ostacoli
   const MIN_RING_GAP_PX = 170;
   const MIN_RING_FROM_OBS_PX = 150;
 
-  // Foot lock small offset (per animazione fluida)
+  // Foot lock
   let bodyOffsetX=0;
   const footLock={active:false, leg:'R', lockScreenX:0, lastTR:0.9, lastTL:0.4, stanceEnd:0.62};
 
   function resetRun(){
-    obstacles=[]; rings=[]; signs=[];
-    speed=460; distMeters=0; ringsCount=0;
-    nextObsAt=120; nextRingAt=80; nextMilestone=500;
+    obstacles=[]; rings=[]; signs=[]; deco=[];
+    speed=468; distMeters=0; ringsCount=0;
+
+    nextObsAt=95; nextRingAt=80; nextMilestone=500;
 
     player.vy=0;
     player.crouch=false;
@@ -440,8 +433,7 @@
     renderLB(lbMenu);
   };
 
-  function requestJump(){ jumpBuf = 0.12; } // 120ms buffer
-
+  function requestJump(){ jumpBuf = 0.12; }
   function doJump(){
     player.vy = -jumpV;
     player.onGround = false;
@@ -459,7 +451,7 @@
   }
 
   /* =========================================================
-     INPUT (Keyboard + Mobile touch migliorato)
+     INPUT
      ========================================================= */
   addEventListener('keydown',(e)=>{
     if(['Space','ArrowUp','ArrowDown'].includes(e.code)) e.preventDefault();
@@ -475,15 +467,13 @@
     if(e.code==='ArrowDown') player.crouch=false;
   },{passive:true});
 
-  // Touch / pointer: tap=jump, swipe down o hold=crouch
+  // Touch / pointer
   let pointerDown=false, startX=0, startY=0, downTime=0;
 
   canvas.addEventListener('pointerdown', (e)=>{
     pointerDown=true;
     startX=e.clientX; startY=e.clientY;
     downTime=performance.now();
-
-    // Avvio partita senza salto involontario
     if(state===STATE.MENU || state===STATE.OVER){
       start();
       return;
@@ -505,12 +495,10 @@
     const dx = Math.abs(e.clientX - startX);
     const dy = e.clientY - startY;
 
-    // swipe/hold => crouch (poi rilascio)
     if(dy > 22 || t > 220){
       player.crouch = false;
       return;
     }
-    // tap => jump
     if(dx < 10 && Math.abs(dy) < 10){
       requestJump();
     }
@@ -559,6 +547,15 @@
   function spawnMilestoneSign(m){
     const x=W+90+Math.random()*140;
     signs.push({x, label:`${m} m`, kind:'mile'});
+  }
+
+  // Alberi decorativi (pochi, NON più frequenti come richiesto)
+  function spawnTree(){
+    const x = W + 80 + Math.random()*620;
+    const scale = 0.75 + Math.random()*0.65;
+    const depth = 0.65 + Math.random()*0.35;
+    const tint = 0.85 + Math.random()*0.20;
+    deco.push({type:'tree', x, scale, depth, tint});
   }
 
   /* =========================================================
@@ -744,7 +741,7 @@
   }
 
   /* =========================================================
-     SIGNS / OBSTACLES / RINGS / CHEESE
+     DRAW: signs / obstacles / rings / cheese / trees
      ========================================================= */
   function drawSign(s){
     const gy=groundY(s.x);
@@ -906,43 +903,113 @@
     ctx.restore();
   }
 
+  // Albero decorativo (pochi)
+  function drawTree(t){
+    const gy = groundY(t.x);
+    const trunkH = 70 * t.scale;
+    const trunkW = 14 * t.scale;
+
+    ctx.save();
+    ctx.globalAlpha = 0.16;
+    ctx.fillStyle = 'rgba(0,0,0,0.6)';
+    ctx.beginPath();
+    ctx.ellipse(t.x + 12*t.scale, gy + 10, 36*t.scale, 8*t.scale, 0.12, 0, Math.PI*2);
+    ctx.fill();
+
+    ctx.globalAlpha = 0.92;
+    const wood = ctx.createLinearGradient(0, gy-trunkH, 0, gy);
+    wood.addColorStop(0, `rgba(120,85,55,${t.tint})`);
+    wood.addColorStop(1, `rgba(70,45,28,${t.tint})`);
+    ctx.fillStyle = wood;
+    roundRect(t.x - trunkW/2, gy - trunkH, trunkW, trunkH, 6*t.scale);
+    ctx.fill();
+
+    const topY = gy - trunkH;
+    const g = ctx.createRadialGradient(t.x, topY, 6*t.scale, t.x, topY, 58*t.scale);
+    g.addColorStop(0, `rgba(92,180,92,${0.92*t.tint})`);
+    g.addColorStop(0.55, `rgba(44,120,60,${0.92*t.tint})`);
+    g.addColorStop(1, `rgba(15,45,25,${0.92*t.tint})`);
+    ctx.fillStyle = g;
+
+    ctx.beginPath();
+    ctx.arc(t.x, topY+10*t.scale, 32*t.scale, 0, Math.PI*2);
+    ctx.arc(t.x-22*t.scale, topY+24*t.scale, 26*t.scale, 0, Math.PI*2);
+    ctx.arc(t.x+22*t.scale, topY+24*t.scale, 26*t.scale, 0, Math.PI*2);
+    ctx.fill();
+
+    ctx.restore();
+  }
+
+  // Formaggio più realistico
   function drawCheese(){
     const gy = groundY(cheese.x);
 
+    // ombra coerente
     ctx.save();
-    ctx.globalAlpha = 0.20;
+    ctx.globalAlpha = 0.22;
     ctx.fillStyle = 'rgba(0,0,0,0.65)';
-    const sh = 4 + Math.abs(Math.sin(cheese.rot))*2;
+    const sh = 5 + Math.abs(Math.sin(cheese.rot))*2.2;
     ctx.beginPath();
-    ctx.ellipse(cheese.x+6, gy+8, cheese.r*1.05, sh, 0.10, 0, Math.PI*2);
+    ctx.ellipse(cheese.x+7, gy+9, cheese.r*1.10, sh, 0.10, 0, Math.PI*2);
     ctx.fill();
     ctx.restore();
 
     ctx.save();
     ctx.translate(cheese.x, cheese.y);
-    ctx.rotate(cheese.rot);
 
-    const cg = ctx.createRadialGradient(-6,-6,4, 0,0,cheese.r+10);
-    cg.addColorStop(0,'#fff2a0');
-    cg.addColorStop(0.55,'#ffd35f');
-    cg.addColorStop(1,'#eaa100');
+    // rotazione + lieve allineamento a pendenza
+    ctx.rotate(cheese.rot + groundAngle()*0.22);
+
+    // corpo
+    const cg = ctx.createRadialGradient(-7,-7,4, 0,0,cheese.r+12);
+    cg.addColorStop(0,'#fff6b8');
+    cg.addColorStop(0.55,'#ffd86f');
+    cg.addColorStop(1,'#e59a00');
     ctx.fillStyle = cg;
     ctx.beginPath();
     ctx.arc(0,0,cheese.r,0,Math.PI*2);
     ctx.fill();
 
-    ctx.globalAlpha = 0.40;
+    // pori
+    ctx.save();
+    ctx.globalAlpha = 0.22;
+    ctx.fillStyle = 'rgba(130,80,0,0.55)';
+    for(let i=0;i<7;i++){
+      const a = (i*1.7 + (cheese.rot*0.25)) % (Math.PI*2);
+      const rr = cheese.r * (0.15 + (i%3)*0.07);
+      const px = Math.cos(a) * (cheese.r*0.45);
+      const py = Math.sin(a*0.9) * (cheese.r*0.35);
+      ctx.beginPath();
+      ctx.ellipse(px, py, rr*0.55, rr*0.38, a*0.3, 0, Math.PI*2);
+      ctx.fill();
+    }
+    ctx.restore();
+
+    // bordo/crosta
+    ctx.save();
+    ctx.globalAlpha = 0.42;
     ctx.strokeStyle = '#b97f00';
-    ctx.lineWidth = 3;
+    ctx.lineWidth = 3.2;
     ctx.beginPath();
-    ctx.arc(0,0,cheese.r-1.5,0,Math.PI*2);
+    ctx.arc(0,0,cheese.r-1.6,0,Math.PI*2);
     ctx.stroke();
+    ctx.restore();
+
+    // highlight
+    ctx.save();
+    ctx.globalAlpha = 0.55;
+    ctx.strokeStyle = 'rgba(255,255,255,0.75)';
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.arc(cheese.r*0.08, -cheese.r*0.10, cheese.r*0.78, -1.25, -0.20);
+    ctx.stroke();
+    ctx.restore();
 
     ctx.restore();
   }
 
   /* =========================================================
-     RUNNER (con faccia reale)
+     RUNNER (testa più grande)
      ========================================================= */
   function solveIK(hip, footPos, l1, l2, bend){
     let dx = footPos.x - hip.x;
@@ -1032,7 +1099,7 @@
   function drawRunner(px, py, crouch, phase, name){
     ctx.save();
 
-    const angSlope = Math.atan(slope());
+    const angSlope = groundAngle();
     const bodyH = crouch ? 66 : 84;
 
     const stride=28;
@@ -1042,7 +1109,6 @@
     const L=legKinematics(phase, Math.PI, stride, lift, bodyH, stanceEnd);
     const R=legKinematics(phase, 0.0,   stride, lift, bodyH, stanceEnd);
 
-    // foot lock (riduce "scivolamento")
     const wrapR = footLock.lastTR > R.t;
     const wrapL = footLock.lastTL > L.t;
     if(wrapR){ footLock.active=true; footLock.leg='R'; footLock.lockScreenX = px + bodyOffsetX + R.x; }
@@ -1083,41 +1149,41 @@
     roundRect(-13 + pelvisShift*0.15, 48, 26, 14, 7);
     ctx.fill();
 
-    // neck
+    // neck (leggermente più grande per testa grande)
     ctx.fillStyle = skin;
-    roundRect(-4, 10, 8, 10, 4);
+    roundRect(-5, 12, 10, 10, 5);
     ctx.fill();
 
-    // head with face
+    // head with face (PIÙ GRANDE)
+    const headR = 16;
     const face = (name==='Anna') ? faceAnna : faceMarco;
     const faceOk = face && !face._bad && face.complete && face.naturalWidth > 0;
 
     if(faceOk){
       ctx.save();
       ctx.beginPath();
-      ctx.arc(0, 0, 12, 0, Math.PI*2);
+      ctx.arc(0, 0, headR, 0, Math.PI*2);
       ctx.clip();
-      ctx.drawImage(face, -12, -12, 24, 24);
+      ctx.drawImage(face, -headR, -headR, headR*2, headR*2);
       ctx.restore();
 
       ctx.save();
       ctx.globalAlpha=0.22;
       ctx.strokeStyle='rgba(0,0,0,0.55)';
-      ctx.lineWidth=2;
+      ctx.lineWidth=2.2;
       ctx.beginPath();
-      ctx.arc(0,0,12,0,Math.PI*2);
+      ctx.arc(0,0,headR,0,Math.PI*2);
       ctx.stroke();
       ctx.restore();
     } else {
       ctx.fillStyle = skin;
       ctx.beginPath();
-      ctx.arc(0,0,12,0,Math.PI*2);
+      ctx.arc(0,0,headR,0,Math.PI*2);
       ctx.fill();
 
-      // hair only if face missing (avoid covering)
       ctx.fillStyle = (name==='Anna') ? '#2d1f1b' : '#3a2a1e';
       ctx.beginPath();
-      ctx.arc(-2,-2,13, Math.PI*1.05, Math.PI*1.95);
+      ctx.arc(-2,-2,headR+1, Math.PI*1.05, Math.PI*1.95);
       ctx.fill();
     }
 
@@ -1181,19 +1247,16 @@
     <circle cx="-12" cy="-78" r="4" fill="rgba(0,0,0,0.55)"/>
     <circle cx="12" cy="-78" r="4" fill="rgba(0,0,0,0.55)"/>
     <path d="M-10 -62 Q0 -56 10 -62" stroke="rgba(0,0,0,0.45)" stroke-width="4" fill="none" stroke-linecap="round"/>
-    <!-- braccio con gesso -->
     <g transform="translate(62,16) rotate(12)">
       <rect x="-6" y="-6" width="18" height="86" rx="10" fill="url(#skin)" opacity="0.9"/>
       <rect x="-14" y="30" width="36" height="68" rx="14" fill="url(#cast)" stroke="rgba(0,0,0,0.12)"/>
       <path d="M-6 40 L14 60 M-6 54 L14 74 M-6 68 L14 88" stroke="rgba(0,0,0,0.10)" stroke-width="4" stroke-linecap="round"/>
     </g>
-    <!-- stampella -->
     <g transform="translate(92,42) rotate(6)" opacity="0.9">
       <rect x="-4" y="-12" width="8" height="136" rx="4" fill="#caa77b"/>
       <rect x="-22" y="-22" width="44" height="12" rx="6" fill="#caa77b"/>
       <rect x="-12" y="96" width="24" height="12" rx="6" fill="#caa77b"/>
     </g>
-    <!-- stelline -->
     <g opacity="0.75">
       <path d="M-120 -120 l10 18 20 6-16 12 2 20-16-12-16 12 2-20-16-12 20-6z" fill="#ffcc00"/>
       <path d="M120 -108 l8 14 16 4-12 10 2 16-14-9-14 9 2-16-12-10 16-4z" fill="#ffd77a"/>
@@ -1204,7 +1267,7 @@
   }
 
   /* =========================================================
-     STEP (fisica stabile + spawn + collisioni)
+     GAME OVER
      ========================================================= */
   function gameOver(){
     state = STATE.OVER;
@@ -1223,38 +1286,31 @@
     renderLB(lbOver);
   }
 
+  /* =========================================================
+     STEP (fisica + spawn + collisioni)
+     ========================================================= */
   function step(dt){
-    // ambiente
     const mode = envMode();
     envChip.textContent = 'Ambiente: ' + (mode===0 ? 'Montagna' : 'Città');
 
-    // timers
     coyote = Math.max(0, coyote - dt);
     jumpBuf = Math.max(0, jumpBuf - dt);
 
-    // speed scaling (leggero)
-    // aumenta un po' ogni 100 metri
     const add = Math.floor(distMeters/100) * speedAdd;
-    const targetSpeed = 460 + add;
-    speed = lerp(speed, targetSpeed, 0.025);
+    const targetSpeed = 468 + add;
+    speed = lerp(speed, targetSpeed, 0.028);
 
-    // avanzamento “metri”
-    // 1 metro ogni 20px circa => sensazione ok
     const metersPerPx = 1/20;
     const dx = speed * dt;
     distMeters += dx * metersPerPx;
 
-    // animazione corsa
     player.runT += dt * (1.2 + speed/520);
 
-    // crouch + piedi incollati
     updateCrouchAndFeetLock();
 
-    // gravità
     player.vy += gravity * dt;
     player.y += player.vy * dt;
 
-    // terreno (y in base a x)
     const px = player.x();
     const gy = groundY(px);
     const foot = player.y + player.h;
@@ -1270,44 +1326,54 @@
       player.onGround = false;
     }
 
-    // salto se richiesto
     if(jumpBuf > 0 && (player.onGround || coyote > 0)){
       doJump();
     }
 
-    // spostamento oggetti (world scorre a sinistra)
+    // scorrimento mondo
     for(const o of obstacles) o.x -= dx;
     for(const r of rings) { r.x -= dx; r.spin += dt*3.2; }
     for(const s of signs) s.x -= dx;
 
-    // pulizia fuori schermo
+    // alberi decorativi: parallax (più lenti)
+    for(const d of deco) d.x -= dx * d.depth;
+
     obstacles = obstacles.filter(o => o.x + o.w > -80);
     rings = rings.filter(r => r.x + r.r > -60);
     signs = signs.filter(s => s.x > -260);
+    deco = deco.filter(d => d.x > -260);
 
-    // milestone signs
     if(distMeters >= nextMilestone){
       spawnMilestoneSign(nextMilestone);
       nextMilestone += 500;
     }
 
-    // spawn ostacoli
+    // OSTACOLI PIÙ FREQUENTI (come richiesto)
     if(distMeters >= nextObsAt){
-      // gap fairness
       if(W - lastObstacleX() > MIN_OBS_GAP_PX){
         if(mode===0) spawnBush(); else spawnCar();
       }
-      // prossimo ostacolo (difficoltà che cresce lentamente)
-      const baseGap = 95; // metri
-      const chaos = 55;
-      const diff = clamp(distMeters/1400, 0, 1);
-      const minGap = lerp(baseGap+40, baseGap, diff);   // diventa un po' più frequente
+
+      const city = (mode===1);
+      const baseGap = city ? 55 : 68;     // più frequenti
+      const chaos   = city ? 42 : 50;
+
+      const diff = clamp(distMeters/1600, 0, 1);
+      const minGap = lerp(baseGap+18, baseGap, diff);
+
       nextObsAt = distMeters + (minGap + Math.random()*chaos);
+
+      // in città a volte doppia auto "vicina" (ma non troppo)
+      if(city && Math.random() < 0.24){
+        if(W - lastObstacleX() > MIN_OBS_GAP_PX + 35){
+          spawnCar();
+          obstacles[obstacles.length-1].x += 135 + Math.random()*75;
+        }
+      }
     }
 
-    // spawn ring
+    // ring
     if(distMeters >= nextRingAt){
-      // evita ring troppo vicino a ostacoli
       const okGap = (W - lastRingX() > MIN_RING_GAP_PX);
       if(okGap){
         const xCandidate = W + 80 + Math.random()*200;
@@ -1317,25 +1383,25 @@
       nextRingAt = distMeters + (60 + Math.random()*75);
     }
 
-    // aggiorna cheese (davanti al player)
-    cheese.x = px + 64;
+    // alberi decorativi: pochi (NON più frequenti)
+    if(mode===0 && Math.random() < 0.010){
+      if(!deco.length || (W - deco[deco.length-1].x) > 220) spawnTree();
+    }
+
+    // cheese: attaccato al terreno + rotolìo fisico (distanza lungo pendenza / r)
+    cheese.x = px + 66;
     cheese.y = groundY(cheese.x) - cheese.r;
-    cheese.rot += (dx / (cheese.r*1.6)) * 0.015;
+
+    const sAlongGround = dx * groundLenFactor(); // più realistico su pendenza
+    cheese.rot += sAlongGround / cheese.r;
 
     // collisioni
     const pRect = { x: px - player.w/2, y: player.y, w: player.w, h: player.h };
 
-    // ostacoli
     for(const o of obstacles){
       const ogy = groundY(o.x);
-      const oRect = {
-        x: o.x,
-        y: ogy - o.h,
-        w: o.w,
-        h: o.h
-      };
+      const oRect = { x: o.x, y: ogy - o.h, w: o.w, h: o.h };
 
-      // piccola tolleranza per feel migliore
       const tol = 3;
       const a = {x:pRect.x+tol, y:pRect.y+tol, w:pRect.w-2*tol, h:pRect.h-2*tol};
       const b = {x:oRect.x+tol, y:oRect.y+tol, w:oRect.w-2*tol, h:oRect.h-2*tol};
@@ -1346,7 +1412,6 @@
       }
     }
 
-    // rings
     for(let i=rings.length-1;i>=0;i--){
       const rg = rings[i];
       if(circleRectOverlap(rg.x, rg.y, rg.r*0.95, pRect.x, pRect.y, pRect.w, pRect.h)){
@@ -1355,7 +1420,6 @@
       }
     }
 
-    // HUD
     metersEl.textContent = Math.floor(distMeters);
     ringsEl.textContent = ringsCount;
     nameChip.textContent = 'Giocatore: ' + playerName;
@@ -1371,57 +1435,49 @@
     const mode = envMode();
 
     drawBackground(mode, tms);
-
-    // ground base
     drawGround(mode);
 
-    // preview of next env
     if(state===STATE.RUN) drawUpcomingPreview();
     else hintChip.textContent = 'Tap/Spazio salta · ↓/Swipe giù accovacciati';
 
-    // signs
-    ctx.save();
-    for(const s of signs) drawSign(s);
-    ctx.restore();
+    // Alberi decorativi (dietro ostacoli) - pochi
+    if(mode===0){
+      for(const d of deco) if(d.type==='tree') drawTree(d);
+    }
 
-    // rings
+    for(const s of signs) drawSign(s);
+
     for(const rg of rings) drawRing(rg);
 
-    // obstacles
     for(const o of obstacles){
       if(o.type==='bush') drawBush(o);
       else drawCar(o);
     }
 
-    // cheese
     if(state!==STATE.MENU){
       drawCheese();
     }
 
-    // runner
     if(state===STATE.RUN){
       const px = player.x();
-      const py = player.y; // top y of player box
-      // runner draw expects anchor around torso: use foot point - bodyH approx
+      const py = player.y;
       drawRunner(px, py + 4, player.crouch, player.runT*4.2, character);
     }
 
-    // MENU idle preview character
     if(state===STATE.MENU){
-      // mini demo runner
       const px = W*0.22;
       const gy = groundY(px);
       drawRunner(px, gy-standH+4, false, (tms/1000)*4.1, character);
-      // mini cheese
-      cheese.x = px + 64;
+
+      cheese.x = px + 66;
       cheese.y = groundY(cheese.x) - cheese.r;
-      cheese.rot = (tms/1000)*1.2;
+      cheese.rot = (tms/1000)*2.0;
       drawCheese();
     }
   }
 
   /* =========================================================
-     LOOP (timestep fisso: gameplay stabile)
+     LOOP (timestep fisso)
      ========================================================= */
   let lastT = performance.now();
   let acc = 0;
