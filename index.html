@@ -11,7 +11,7 @@
     canvas{position:absolute;inset:0;}
 
     .hud{position:absolute;left:12px;top:12px;display:flex;gap:14px;align-items:center;
-      background:rgba(0,0,0,.28);backdrop-filter:blur(6px);padding:10px 12px;border-radius:12px;border:1px solid rgba(255,255,255,.12);}
+      background:rgba(0,0,0,.28);backdrop-filter:blur(6px);padding:10px 12px;border-radius:12px;border:1px solid rgba(255,255,255,.12);flex-wrap:wrap}
     .hud b{font-variant-numeric:tabular-nums;}
     .badge{display:inline-flex;gap:8px;align-items:center}
     .dot{width:10px;height:10px;border-radius:99px;background:var(--accent);box-shadow:0 0 14px rgba(255,204,0,.7)}
@@ -56,6 +56,7 @@
     .lb li{margin:3px 0;opacity:.9}
     #castArt svg{width:min(360px,70vw);height:auto;display:block;margin:10px auto 2px;}
     #castHint{opacity:.85;text-align:center;margin-top:6px}
+    .small{opacity:.8;font-size:12px;text-align:center;margin-top:8px}
   </style>
 </head>
 <body>
@@ -68,7 +69,7 @@
     <span class="chip" id="nameChip">Giocatore: —</span>
     <span class="chip" id="charChip">Personaggio: —</span>
     <span class="chip" id="envChip">Ambiente: —</span>
-    <span class="chip" id="hintChip">—</span>
+    <span class="chip" id="hintChip">Tap/Spazio salta · ↓/Swipe giù accovacciati</span>
   </div>
 
   <div class="overlay" id="menu">
@@ -91,14 +92,22 @@
 
       <div id="howBox" class="hidden" style="margin-top:12px;text-align:center;color:rgba(234,240,255,.86)">
         <div style="margin-bottom:6px"><b>Obiettivo:</b> fai più metri possibile e raccogli più 💍 possibile.</div>
-        <div><b>Montagna:</b> salta i cespugli · <b>Città:</b> salta le auto · <span class="kbd">Spazio</span>/<span class="kbd">↑</span> salta · <span class="kbd">↓</span> accovacciati.</div>
-        <div style="margin-top:6px;opacity:.85">La transizione arriva prima dei 1000m con una “striscia preview” del nuovo terreno.</div>
+        <div>
+          <b>Montagna:</b> salta i cespugli · <b>Città:</b> salta le auto ·
+          <span class="kbd">Spazio</span>/<span class="kbd">↑</span> salta ·
+          <span class="kbd">↓</span> o <b>Swipe giù</b> accovacciati.
+        </div>
+        <div style="margin-top:6px;opacity:.85">
+          Consigli: puoi saltare anche appena dopo il bordo (coyote time) e “buffer” del salto prima di atterrare.
+        </div>
       </div>
 
       <div class="lb">
         <h3>🏆 Classifica (migliori punteggi su questo dispositivo)</h3>
         <ol id="lbMenu"></ol>
       </div>
+
+      <div class="small">Mobile: tap = salto · swipe giù / tieni premuto = accovacciati</div>
     </div>
   </div>
 
@@ -117,15 +126,17 @@
         <button class="primary" id="retry">Riprova</button>
         <button id="back">Torna al menu</button>
       </div>
+      <div class="small">Suggerimento: prova a usare ↓/swipe giù per evitare i colpi “bassi” 😉</div>
     </div>
   </div>
 </div>
 
 <script>
 (() => {
+  "use strict";
 
   /* =========================================================
-     FOTO REALI (file nella ROOT del repo)
+     FOTO REALI (file nella ROOT)
      - "Foto Anna.jpg"
      - "Foto Marco.jpg"
      ========================================================= */
@@ -133,14 +144,17 @@
   faceAnna.src = 'Foto%20Anna.jpg';
   const faceMarco = new Image();
   faceMarco.src = 'Foto%20Marco.jpg';
+  // Evita loop di errori su immagini mancanti
+  faceAnna.onerror = () => (faceAnna._bad = true);
+  faceMarco.onerror = () => (faceMarco._bad = true);
 
   /* =========================================================
      CANVAS
      ========================================================= */
   const canvas = document.getElementById('c');
-  const ctx = canvas.getContext('2d');
+  const ctx = canvas.getContext('2d', { alpha: true });
 
-  let W=0,H=0,DPR=1;
+  let W=0, H=0, DPR=1;
 
   // Cached pattern (performance)
   let cobblePattern = null;
@@ -179,14 +193,17 @@
   }
 
   function resize(){
-    DPR = Math.min(2, window.devicePixelRatio || 1);
+    // DPR un po' più gentile su mobile per FPS migliori
+    DPR = Math.min(1.5, window.devicePixelRatio || 1);
     W = Math.floor(window.innerWidth);
     H = Math.floor(window.innerHeight);
+
     canvas.width = Math.floor(W*DPR);
     canvas.height = Math.floor(H*DPR);
     canvas.style.width = W+'px';
     canvas.style.height = H+'px';
     ctx.setTransform(DPR,0,0,DPR,0,0);
+
     makeCobblePattern();
   }
   addEventListener('resize', resize);
@@ -226,7 +243,7 @@
   /* =========================================================
      LEADERBOARD (localStorage)
      ========================================================= */
-  const SCORE_KEY = 'cheeseRolling_scores_v1';
+  const SCORE_KEY = 'cheeseRolling_scores_v2';
 
   function loadScores(){
     try { return JSON.parse(localStorage.getItem(SCORE_KEY) || '{}'); }
@@ -241,9 +258,9 @@
     if(prev === undefined || score > prev){
       s[player] = score;
       saveScores(s);
-      return true; // updated
+      return true;
     }
-    return false; // unchanged
+    return false;
   }
   function topList(limit=10){
     const s = loadScores();
@@ -268,32 +285,8 @@
   }
 
   /* =========================================================
-     GAME state
+     UTILS
      ========================================================= */
-  const STATE={MENU:0,RUN:1,OVER:2};
-  let state=STATE.MENU;
-
-  let playerName = 'Anonimo';
-  let character='Anna';
-
-  function setCharacter(c){
-    character=c;
-    charChip.textContent='Personaggio: '+c;
-    if(c==='Anna'){ pickAnna.classList.add('primary'); pickMarco.classList.remove('primary'); }
-    else { pickMarco.classList.add('primary'); pickAnna.classList.remove('primary'); }
-  }
-  setCharacter('Anna');
-  pickAnna.onclick=()=>setCharacter('Anna');
-  pickMarco.onclick=()=>setCharacter('Marco');
-  howBtn.onclick=()=>howBox.classList.toggle('hidden');
-
-  /* =========================================================
-     WORLD
-     ========================================================= */
-  const groundBase=()=>H*0.80;
-  const slope=()=>H*0.18/W;
-  const groundY=(x)=>groundBase()+slope()*(x-W*0.25);
-
   const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
   const lerp=(a,b,t)=>a+(b-a)*t;
   const smooth=(t)=>t*t*(3-2*t);
@@ -319,6 +312,13 @@
     return dx*dx+dy*dy <= cr*cr;
   }
 
+  /* =========================================================
+     WORLD (slope + ground)
+     ========================================================= */
+  const groundBase=()=>H*0.80;
+  const slope=()=>H*0.18/W;
+  const groundY=(x)=>groundBase()+slope()*(x-W*0.25);
+
   // Modes (0 montagna, 1 città)
   function envMode(){ return (Math.floor(distMeters/1000) % 2); }
   function nextEnvMode(){ return ((Math.floor(distMeters/1000)+1) % 2); }
@@ -331,42 +331,94 @@
     return smooth(clamp((local-start)/(1000-start),0,1));
   }
 
-  // Physics
-  const metersPerPixel=0.05;
-  const gravity=2550;
-  const jumpV=1020;
+  /* =========================================================
+     GAME state
+     ========================================================= */
+  const STATE={MENU:0,RUN:1,OVER:2};
+  let state=STATE.MENU;
 
-  const player={x:()=>W*0.22, y:0, vy:0, w:36, h:84, crouch:false, onGround:true, runT:0};
+  let playerName = 'Anonimo';
+  let character='Anna';
+
+  function setCharacter(c){
+    character=c;
+    charChip.textContent='Personaggio: '+c;
+    if(c==='Anna'){ pickAnna.classList.add('primary'); pickMarco.classList.remove('primary'); }
+    else { pickMarco.classList.add('primary'); pickAnna.classList.remove('primary'); }
+  }
+  setCharacter('Anna');
+
+  pickAnna.onclick=()=>setCharacter('Anna');
+  pickMarco.onclick=()=>setCharacter('Marco');
+  howBtn.onclick=()=>howBox.classList.toggle('hidden');
+
+  /* =========================================================
+     Physics (stabili e più giocabili)
+     ========================================================= */
+  const gravity=2600;      // un filo più “snappy”
+  const jumpV=1060;
+  const crouchH = 60;
+  const standH  = 84;
+
+  // coyote time + jump buffer
+  let coyote = 0;
+  let jumpBuf = 0;
+
+  const player={
+    x:()=>W*0.22,
+    y:0, vy:0,
+    w:36, h:standH,
+    crouch:false, onGround:true,
+    runT:0
+  };
+
   const cheese={x:0,y:0,r:18,rot:0};
 
-  let obstacles=[]; // bush o car
-  let rings=[];     // collectible
+  let obstacles=[]; // bush/car
+  let rings=[];     // collectibles
   let signs=[];
 
-  let nextObs=0.75, nextRing=1.00, nextMilestone=500;
-  let speed=455, speedAdd=10.5;
-  let distMeters=0, ringsCount=0;
-  let lastMode=0;
+  // progress
+  let speed=460;          // px/s
+  let speedAdd=10.0;      // accel per 100m
+  let distMeters=0;
+  let ringsCount=0;
 
-  // Foot lock
+  let nextObsAt=120;      // metri
+  let nextRingAt=80;
+  let nextMilestone=500;
+
+  // “fairness” spawn gap
+  const MIN_OBS_GAP_PX = 260;
+  const MIN_RING_GAP_PX = 170;
+  const MIN_RING_FROM_OBS_PX = 150;
+
+  // Foot lock small offset (per animazione fluida)
   let bodyOffsetX=0;
   const footLock={active:false, leg:'R', lockScreenX:0, lastTR:0.9, lastTL:0.4, stanceEnd:0.62};
 
   function resetRun(){
     obstacles=[]; rings=[]; signs=[];
-    speed=455; distMeters=0; ringsCount=0;
-    nextObs=0.75; nextRing=1.00; nextMilestone=500;
-    player.vy=0; player.crouch=false; player.runT=0; player.onGround=true; player.h=84;
+    speed=460; distMeters=0; ringsCount=0;
+    nextObsAt=120; nextRingAt=80; nextMilestone=500;
+
+    player.vy=0;
+    player.crouch=false;
+    player.runT=0;
+    player.onGround=true;
+    player.h=standH;
+
     player.y = groundY(player.x()) - player.h;
+
     cheese.rot=0;
     bodyOffsetX=0;
+
     footLock.active=false; footLock.leg='R'; footLock.lastTR=0.9; footLock.lastTL=0.4;
-    lastMode=0;
+
     signs.push({x: W*0.65, label: 'Cheese Rolling - Start', kind:'start'});
   }
 
   function start(){
-    // leggi nome
     const raw = (nameInput.value || '').trim();
     playerName = raw ? raw.slice(0,18) : 'Anonimo';
     nameChip.textContent = 'Giocatore: ' + playerName;
@@ -377,6 +429,7 @@
     over.classList.add('hidden');
     state=STATE.RUN;
   }
+
   startBtn.onclick=start;
   retryBtn.onclick=start;
   backBtn.onclick=()=>{
@@ -387,30 +440,100 @@
     renderLB(lbMenu);
   };
 
-  function jump(){ if(player.onGround){ player.vy=-jumpV; player.onGround=false; } }
+  function requestJump(){ jumpBuf = 0.12; } // 120ms buffer
 
+  function doJump(){
+    player.vy = -jumpV;
+    player.onGround = false;
+    coyote = 0;
+    jumpBuf = 0;
+  }
+
+  function updateCrouchAndFeetLock(){
+    const desiredH = player.crouch ? crouchH : standH;
+    if(player.h !== desiredH){
+      const footY = player.y + player.h;
+      player.h = desiredH;
+      player.y = footY - player.h;
+    }
+  }
+
+  /* =========================================================
+     INPUT (Keyboard + Mobile touch migliorato)
+     ========================================================= */
   addEventListener('keydown',(e)=>{
     if(['Space','ArrowUp','ArrowDown'].includes(e.code)) e.preventDefault();
+
     if(state===STATE.RUN){
-      if(e.code==='Space'||e.code==='ArrowUp') jump();
+      if(e.code==='Space'||e.code==='ArrowUp') requestJump();
       if(e.code==='ArrowDown') player.crouch=true;
     }
     if(state===STATE.OVER && (e.code==='Space'||e.code==='Enter')) start();
   },{passive:false});
-  addEventListener('keyup',(e)=>{ if(e.code==='ArrowDown') player.crouch=false; });
 
-  canvas.addEventListener('pointerdown',()=>{
-    if(state===STATE.RUN) jump();
-    else if(state===STATE.MENU) start();
-    else if(state===STATE.OVER) start();
-  });
+  addEventListener('keyup',(e)=>{
+    if(e.code==='ArrowDown') player.crouch=false;
+  },{passive:true});
+
+  // Touch / pointer: tap=jump, swipe down o hold=crouch
+  let pointerDown=false, startX=0, startY=0, downTime=0;
+
+  canvas.addEventListener('pointerdown', (e)=>{
+    pointerDown=true;
+    startX=e.clientX; startY=e.clientY;
+    downTime=performance.now();
+
+    // Avvio partita senza salto involontario
+    if(state===STATE.MENU || state===STATE.OVER){
+      start();
+      return;
+    }
+  }, {passive:true});
+
+  canvas.addEventListener('pointermove', (e)=>{
+    if(!pointerDown || state!==STATE.RUN) return;
+    const dy = e.clientY - startY;
+    if(dy > 22) player.crouch = true;
+  }, {passive:true});
+
+  canvas.addEventListener('pointerup', (e)=>{
+    if(!pointerDown) return;
+    pointerDown=false;
+    if(state!==STATE.RUN) return;
+
+    const t = performance.now() - downTime;
+    const dx = Math.abs(e.clientX - startX);
+    const dy = e.clientY - startY;
+
+    // swipe/hold => crouch (poi rilascio)
+    if(dy > 22 || t > 220){
+      player.crouch = false;
+      return;
+    }
+    // tap => jump
+    if(dx < 10 && Math.abs(dy) < 10){
+      requestJump();
+    }
+  }, {passive:true});
+
+  canvas.addEventListener('pointercancel', ()=>{
+    pointerDown=false;
+    player.crouch=false;
+  }, {passive:true});
 
   /* =========================================================
      SPAWN
      ========================================================= */
+  function lastObstacleX(){
+    return obstacles.length ? obstacles[obstacles.length-1].x : -1e9;
+  }
+  function lastRingX(){
+    return rings.length ? rings[rings.length-1].x : -1e9;
+  }
+
   function spawnBush(){
-    const h=50+Math.random()*60;
-    const w=78+Math.random()*90;
+    const h=52+Math.random()*62;
+    const w=78+Math.random()*92;
     const x=W+60+Math.random()*160;
     const seed=Math.random()*9999;
     const lumps=4+Math.floor(Math.random()*3);
@@ -427,9 +550,9 @@
 
   function spawnRing(){
     const r=16+Math.random()*4;
-    const x=W+40+Math.random()*180;
+    const x=W+60+Math.random()*180;
     const gy=groundY(x);
-    const y=gy-(120+Math.random()*170);
+    const y=gy-(118+Math.random()*175);
     rings.push({x,y,r,spin:Math.random()*Math.PI*2});
   }
 
@@ -567,7 +690,7 @@
   function drawGroundCity(){
     const y0=groundY(0), y1=groundY(W);
     ctx.save();
-    ctx.fillStyle=cobblePattern;
+    ctx.fillStyle=cobblePattern || '#3a3f49';
     ctx.beginPath();
     ctx.moveTo(0,y0); ctx.lineTo(W,y1); ctx.lineTo(W,H); ctx.lineTo(0,H); ctx.closePath();
     ctx.fill();
@@ -587,7 +710,7 @@
 
   function drawUpcomingPreview(){
     const f = previewFactor();
-    if(f<=0) return;
+    if(f<=0) { hintChip.textContent = 'Tap/Spazio salta · ↓/Swipe giù accovacciati'; return; }
 
     const next = nextEnvMode();
     const stripW = lerp(0, W*0.42, f);
@@ -819,7 +942,7 @@
   }
 
   /* =========================================================
-     RUNNER (con faccia vera) – versione corretta
+     RUNNER (con faccia reale)
      ========================================================= */
   function solveIK(hip, footPos, l1, l2, bend){
     let dx = footPos.x - hip.x;
@@ -905,32 +1028,7 @@
     }
     return {t,inStance,x,y,footAng};
   }
-function drawFaceHead(name){
-  const face = (name === 'Anna') ? faceAnna : faceMarco;
-  const ok = face && face.complete && face.naturalWidth > 0;
 
-  if(!ok) return false;
-
-  // faccia dentro cerchio
-  ctx.save();
-  ctx.beginPath();
-  ctx.arc(0, 0, 12, 0, Math.PI * 2);
-  ctx.clip();
-  ctx.drawImage(face, -12, -12, 24, 24);
-  ctx.restore();
-
-  // contorno leggero
-  ctx.save();
-  ctx.globalAlpha = 0.22;
-  ctx.strokeStyle = 'rgba(0,0,0,0.55)';
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  ctx.arc(0, 0, 12, 0, Math.PI * 2);
-  ctx.stroke();
-  ctx.restore();
-
-  return true;
-}
   function drawRunner(px, py, crouch, phase, name){
     ctx.save();
 
@@ -944,6 +1042,7 @@ function drawFaceHead(name){
     const L=legKinematics(phase, Math.PI, stride, lift, bodyH, stanceEnd);
     const R=legKinematics(phase, 0.0,   stride, lift, bodyH, stanceEnd);
 
+    // foot lock (riduce "scivolamento")
     const wrapR = footLock.lastTR > R.t;
     const wrapL = footLock.lastTL > L.t;
     if(wrapR){ footLock.active=true; footLock.leg='R'; footLock.lockScreenX = px + bodyOffsetX + R.x; }
@@ -991,7 +1090,7 @@ function drawFaceHead(name){
 
     // head with face
     const face = (name==='Anna') ? faceAnna : faceMarco;
-    const faceOk = face && face.complete && face.naturalWidth > 0;
+    const faceOk = face && !face._bad && face.complete && face.naturalWidth > 0;
 
     if(faceOk){
       ctx.save();
@@ -1014,10 +1113,8 @@ function drawFaceHead(name){
       ctx.beginPath();
       ctx.arc(0,0,12,0,Math.PI*2);
       ctx.fill();
-    }
 
-    // hair only if face missing (avoid covering)
-    if(!faceOk){
+      // hair only if face missing (avoid covering)
       ctx.fillStyle = (name==='Anna') ? '#2d1f1b' : '#3a2a1e';
       ctx.beginPath();
       ctx.arc(-2,-2,13, Math.PI*1.05, Math.PI*1.95);
@@ -1064,4 +1161,297 @@ function drawFaceHead(name){
     return `
 <svg viewBox="0 0 420 260" xmlns="http://www.w3.org/2000/svg" aria-label="Personaggio ingessato">
   <defs>
-    <linearGradient id="g" x1="0" y1="0" x2="1"
+    <linearGradient id="skin" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ffd7bf"/>
+      <stop offset="1" stop-color="#e9bfa2"/>
+    </linearGradient>
+    <linearGradient id="cast" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#dfe6ef"/>
+    </linearGradient>
+  </defs>
+  <rect x="0" y="0" width="420" height="260" rx="22" fill="rgba(0,0,0,0.12)"/>
+  <g transform="translate(210 130)">
+    <ellipse cx="14" cy="94" rx="120" ry="22" fill="rgba(0,0,0,0.18)"/>
+    <rect x="-62" y="-2" width="124" height="94" rx="20" fill="${shirt}" opacity="0.95"/>
+    <rect x="-70" y="78" width="140" height="30" rx="16" fill="#2b2f3a" opacity="0.95"/>
+    <rect x="-20" y="-38" width="40" height="34" rx="14" fill="url(#skin)"/>
+    <circle cx="0" cy="-74" r="36" fill="url(#skin)"/>
+    <path d="M-32 -88 C-18 -120, 18 -120, 32 -88 C 18 -98, -18 -98, -32 -88Z" fill="${hair}" opacity="0.95"/>
+    <circle cx="-12" cy="-78" r="4" fill="rgba(0,0,0,0.55)"/>
+    <circle cx="12" cy="-78" r="4" fill="rgba(0,0,0,0.55)"/>
+    <path d="M-10 -62 Q0 -56 10 -62" stroke="rgba(0,0,0,0.45)" stroke-width="4" fill="none" stroke-linecap="round"/>
+    <!-- braccio con gesso -->
+    <g transform="translate(62,16) rotate(12)">
+      <rect x="-6" y="-6" width="18" height="86" rx="10" fill="url(#skin)" opacity="0.9"/>
+      <rect x="-14" y="30" width="36" height="68" rx="14" fill="url(#cast)" stroke="rgba(0,0,0,0.12)"/>
+      <path d="M-6 40 L14 60 M-6 54 L14 74 M-6 68 L14 88" stroke="rgba(0,0,0,0.10)" stroke-width="4" stroke-linecap="round"/>
+    </g>
+    <!-- stampella -->
+    <g transform="translate(92,42) rotate(6)" opacity="0.9">
+      <rect x="-4" y="-12" width="8" height="136" rx="4" fill="#caa77b"/>
+      <rect x="-22" y="-22" width="44" height="12" rx="6" fill="#caa77b"/>
+      <rect x="-12" y="96" width="24" height="12" rx="6" fill="#caa77b"/>
+    </g>
+    <!-- stelline -->
+    <g opacity="0.75">
+      <path d="M-120 -120 l10 18 20 6-16 12 2 20-16-12-16 12 2-20-16-12 20-6z" fill="#ffcc00"/>
+      <path d="M120 -108 l8 14 16 4-12 10 2 16-14-9-14 9 2-16-12-10 16-4z" fill="#ffd77a"/>
+      <path d="M-140 -10 l7 12 14 3-10 8 2 14-12-8-12 8 2-14-10-8 14-3z" fill="#fff3c0"/>
+    </g>
+  </g>
+</svg>`;
+  }
+
+  /* =========================================================
+     STEP (fisica stabile + spawn + collisioni)
+     ========================================================= */
+  function gameOver(){
+    state = STATE.OVER;
+    hud.style.display='none';
+    over.classList.remove('hidden');
+    menu.classList.add('hidden');
+
+    const m = Math.floor(distMeters);
+    finalNameEl.textContent = playerName;
+    finalMetersEl.textContent = m;
+    finalRingsEl.textContent = ringsCount;
+
+    castArt.innerHTML = castSVG(character);
+
+    updateBestScore(playerName, m);
+    renderLB(lbOver);
+  }
+
+  function step(dt){
+    // ambiente
+    const mode = envMode();
+    envChip.textContent = 'Ambiente: ' + (mode===0 ? 'Montagna' : 'Città');
+
+    // timers
+    coyote = Math.max(0, coyote - dt);
+    jumpBuf = Math.max(0, jumpBuf - dt);
+
+    // speed scaling (leggero)
+    // aumenta un po' ogni 100 metri
+    const add = Math.floor(distMeters/100) * speedAdd;
+    const targetSpeed = 460 + add;
+    speed = lerp(speed, targetSpeed, 0.025);
+
+    // avanzamento “metri”
+    // 1 metro ogni 20px circa => sensazione ok
+    const metersPerPx = 1/20;
+    const dx = speed * dt;
+    distMeters += dx * metersPerPx;
+
+    // animazione corsa
+    player.runT += dt * (1.2 + speed/520);
+
+    // crouch + piedi incollati
+    updateCrouchAndFeetLock();
+
+    // gravità
+    player.vy += gravity * dt;
+    player.y += player.vy * dt;
+
+    // terreno (y in base a x)
+    const px = player.x();
+    const gy = groundY(px);
+    const foot = player.y + player.h;
+
+    if(foot >= gy){
+      player.y = gy - player.h;
+      player.vy = 0;
+      if(!player.onGround) coyote = 0.09;
+      player.onGround = true;
+      coyote = 0.09;
+    } else {
+      if(player.onGround) coyote = 0.09;
+      player.onGround = false;
+    }
+
+    // salto se richiesto
+    if(jumpBuf > 0 && (player.onGround || coyote > 0)){
+      doJump();
+    }
+
+    // spostamento oggetti (world scorre a sinistra)
+    for(const o of obstacles) o.x -= dx;
+    for(const r of rings) { r.x -= dx; r.spin += dt*3.2; }
+    for(const s of signs) s.x -= dx;
+
+    // pulizia fuori schermo
+    obstacles = obstacles.filter(o => o.x + o.w > -80);
+    rings = rings.filter(r => r.x + r.r > -60);
+    signs = signs.filter(s => s.x > -260);
+
+    // milestone signs
+    if(distMeters >= nextMilestone){
+      spawnMilestoneSign(nextMilestone);
+      nextMilestone += 500;
+    }
+
+    // spawn ostacoli
+    if(distMeters >= nextObsAt){
+      // gap fairness
+      if(W - lastObstacleX() > MIN_OBS_GAP_PX){
+        if(mode===0) spawnBush(); else spawnCar();
+      }
+      // prossimo ostacolo (difficoltà che cresce lentamente)
+      const baseGap = 95; // metri
+      const chaos = 55;
+      const diff = clamp(distMeters/1400, 0, 1);
+      const minGap = lerp(baseGap+40, baseGap, diff);   // diventa un po' più frequente
+      nextObsAt = distMeters + (minGap + Math.random()*chaos);
+    }
+
+    // spawn ring
+    if(distMeters >= nextRingAt){
+      // evita ring troppo vicino a ostacoli
+      const okGap = (W - lastRingX() > MIN_RING_GAP_PX);
+      if(okGap){
+        const xCandidate = W + 80 + Math.random()*200;
+        const nearObs = obstacles.some(o => Math.abs((o.x+o.w*0.5) - xCandidate) < MIN_RING_FROM_OBS_PX);
+        if(!nearObs) spawnRing();
+      }
+      nextRingAt = distMeters + (60 + Math.random()*75);
+    }
+
+    // aggiorna cheese (davanti al player)
+    cheese.x = px + 64;
+    cheese.y = groundY(cheese.x) - cheese.r;
+    cheese.rot += (dx / (cheese.r*1.6)) * 0.015;
+
+    // collisioni
+    const pRect = { x: px - player.w/2, y: player.y, w: player.w, h: player.h };
+
+    // ostacoli
+    for(const o of obstacles){
+      const ogy = groundY(o.x);
+      const oRect = {
+        x: o.x,
+        y: ogy - o.h,
+        w: o.w,
+        h: o.h
+      };
+
+      // piccola tolleranza per feel migliore
+      const tol = 3;
+      const a = {x:pRect.x+tol, y:pRect.y+tol, w:pRect.w-2*tol, h:pRect.h-2*tol};
+      const b = {x:oRect.x+tol, y:oRect.y+tol, w:oRect.w-2*tol, h:oRect.h-2*tol};
+
+      if(rectsOverlap(a,b)){
+        gameOver();
+        return;
+      }
+    }
+
+    // rings
+    for(let i=rings.length-1;i>=0;i--){
+      const rg = rings[i];
+      if(circleRectOverlap(rg.x, rg.y, rg.r*0.95, pRect.x, pRect.y, pRect.w, pRect.h)){
+        rings.splice(i,1);
+        ringsCount++;
+      }
+    }
+
+    // HUD
+    metersEl.textContent = Math.floor(distMeters);
+    ringsEl.textContent = ringsCount;
+    nameChip.textContent = 'Giocatore: ' + playerName;
+    charChip.textContent = 'Personaggio: ' + character;
+  }
+
+  /* =========================================================
+     RENDER
+     ========================================================= */
+  function render(tms){
+    ctx.clearRect(0,0,W,H);
+
+    const mode = envMode();
+
+    drawBackground(mode, tms);
+
+    // ground base
+    drawGround(mode);
+
+    // preview of next env
+    if(state===STATE.RUN) drawUpcomingPreview();
+    else hintChip.textContent = 'Tap/Spazio salta · ↓/Swipe giù accovacciati';
+
+    // signs
+    ctx.save();
+    for(const s of signs) drawSign(s);
+    ctx.restore();
+
+    // rings
+    for(const rg of rings) drawRing(rg);
+
+    // obstacles
+    for(const o of obstacles){
+      if(o.type==='bush') drawBush(o);
+      else drawCar(o);
+    }
+
+    // cheese
+    if(state!==STATE.MENU){
+      drawCheese();
+    }
+
+    // runner
+    if(state===STATE.RUN){
+      const px = player.x();
+      const py = player.y; // top y of player box
+      // runner draw expects anchor around torso: use foot point - bodyH approx
+      drawRunner(px, py + 4, player.crouch, player.runT*4.2, character);
+    }
+
+    // MENU idle preview character
+    if(state===STATE.MENU){
+      // mini demo runner
+      const px = W*0.22;
+      const gy = groundY(px);
+      drawRunner(px, gy-standH+4, false, (tms/1000)*4.1, character);
+      // mini cheese
+      cheese.x = px + 64;
+      cheese.y = groundY(cheese.x) - cheese.r;
+      cheese.rot = (tms/1000)*1.2;
+      drawCheese();
+    }
+  }
+
+  /* =========================================================
+     LOOP (timestep fisso: gameplay stabile)
+     ========================================================= */
+  let lastT = performance.now();
+  let acc = 0;
+  const FIXED = 1/120;
+  const MAX_DT = 1/20;
+
+  function frame(now){
+    const dt = Math.min(MAX_DT, (now - lastT)/1000);
+    lastT = now;
+    acc += dt;
+
+    while(acc >= FIXED){
+      if(state === STATE.RUN) step(FIXED);
+      acc -= FIXED;
+    }
+
+    render(now);
+    requestAnimationFrame(frame);
+  }
+
+  /* =========================================================
+     STARTUP
+     ========================================================= */
+  function init(){
+    renderLB(lbMenu);
+    requestAnimationFrame(frame);
+  }
+  init();
+
+})();
+</script>
+</body>
+</html>
