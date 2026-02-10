@@ -1,143 +1,270 @@
 <!doctype html>
 <html lang="it">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Cheese Rolling — v5.5</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Cheese Rolling – Anna & Marco</title>
 
-  <style>
-    html,body{
-      margin:0;
-      height:100%;
-      background:#081024;
-      overflow:hidden;
-      font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
-      color:#eaf0ff;
-    }
-    canvas{position:absolute;inset:0}
-  </style>
+<style>
+html,body{
+  margin:0;
+  height:100%;
+  background:#081024;
+  font-family:system-ui,Segoe UI,Roboto,Arial,sans-serif;
+  color:#eaf0ff;
+  overflow:hidden;
+}
+canvas{position:absolute;inset:0}
+
+/* UI */
+.overlay{
+  position:absolute; inset:0;
+  display:flex; align-items:center; justify-content:center;
+}
+.panel{
+  background:rgba(15,20,35,.85);
+  border-radius:18px;
+  padding:20px;
+  width:min(420px,92vw);
+  text-align:center;
+  box-shadow:0 20px 60px rgba(0,0,0,.6);
+}
+input{
+  width:100%;
+  padding:10px;
+  border-radius:10px;
+  border:none;
+  margin:10px 0;
+  font-size:16px;
+}
+button{
+  padding:10px 16px;
+  border-radius:12px;
+  border:none;
+  background:#ffcc00;
+  font-weight:700;
+  cursor:pointer;
+}
+button:hover{background:#ffd633}
+.hidden{display:none}
+
+.leaderboard{
+  margin-top:14px;
+  text-align:left;
+  font-size:14px;
+}
+.leaderboard h3{margin:8px 0}
+.leaderboard ol{padding-left:18px;margin:6px 0}
+</style>
 </head>
 
 <body>
 <canvas id="c"></canvas>
 
+<!-- MENU -->
+<div class="overlay" id="menu">
+  <div class="panel">
+    <h1>🧀 Cheese Rolling</h1>
+
+    <input id="playerNameInput" placeholder="Inserisci il tuo nome">
+
+    <div style="margin:10px 0">
+      <button onclick="selectCharacter('Anna')">Anna</button>
+      <button onclick="selectCharacter('Marco')">Marco</button>
+    </div>
+
+    <button onclick="startGame()">Inizia</button>
+
+    <div class="leaderboard">
+      <h3>🏆 Classifica</h3>
+      <ol id="leaderboardList"></ol>
+    </div>
+  </div>
+</div>
+
+<!-- GAME OVER -->
+<div class="overlay hidden" id="gameover">
+  <div class="panel">
+    <h1>💥 Game Over</h1>
+    <p><b id="finalName"></b></p>
+    <p>Distanza: <b id="finalScore"></b> m</p>
+
+    <div class="leaderboard">
+      <h3>🏆 Classifica</h3>
+      <ol id="leaderboardListOver"></ol>
+    </div>
+
+    <button onclick="resetToMenu()">Torna al menu</button>
+  </div>
+</div>
+
 <script>
 (() => {
 
-  /* =========================================================
-     FOTO REALI (file nella ROOT del repository)
-     ========================================================= */
+  /* ================== IMMAGINI ================== */
   const faceAnna = new Image();
   faceAnna.src = 'Foto Anna.jpg';
 
   const faceMarco = new Image();
   faceMarco.src = 'Foto Marco.jpg';
 
-  /* =========================================================
-     CANVAS SETUP
-     ========================================================= */
+  /* ================== CANVAS ================== */
   const canvas = document.getElementById('c');
   const ctx = canvas.getContext('2d');
-
   function resize(){
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
+    canvas.width = innerWidth;
+    canvas.height = innerHeight;
   }
-  window.addEventListener('resize', resize);
+  addEventListener('resize', resize);
   resize();
 
-  /* =========================================================
-     WORLD / PLAYER
-     ========================================================= */
-  let t = 0;
+  /* ================== STATO ================== */
+  let running = false;
+  let distance = 0;
+  let speed = 220;
+  let lastTime = 0;
+
+  let playerName = '';
   let character = 'Anna';
 
-  const groundY = () => canvas.height * 0.75;
+  const groundY = () => canvas.height * 0.78;
 
-  /* =========================================================
-     DISEGNO RUNNER (VERSIONE SISTEMATA)
-     ========================================================= */
-  function drawRunner(x, y, phase, name){
+  /* ================== LEADERBOARD ================== */
+  function loadScores(){
+    return JSON.parse(localStorage.getItem('cheeseScores') || '{}');
+  }
+
+  function saveScore(name, score){
+    const scores = loadScores();
+    if(!scores[name] || score > scores[name]){
+      scores[name] = score;
+    }
+    localStorage.setItem('cheeseScores', JSON.stringify(scores));
+  }
+
+  function getLeaderboard(){
+    const scores = loadScores();
+    return Object.entries(scores)
+      .sort((a,b)=>b[1]-a[1])
+      .slice(0,10);
+  }
+
+  function renderLeaderboard(el){
+    const data = getLeaderboard();
+    el.innerHTML = '';
+    data.forEach(([name,score])=>{
+      const li = document.createElement('li');
+      li.textContent = `${name} — ${score} m`;
+      el.appendChild(li);
+    });
+  }
+
+  /* ================== RUNNER ================== */
+  function drawRunner(x,y,phase){
     ctx.save();
-    ctx.translate(x, y);
+    ctx.translate(x,y);
 
+    const face = (character==='Anna') ? faceAnna : faceMarco;
     const skin = '#f2c7a5';
 
-    /* COLLO */
-    ctx.fillStyle = skin;
-    ctx.fillRect(-4, 10, 8, 10);
-
-    /* ===== TESTA CON FOTO ===== */
-    const face = (name === 'Anna') ? faceAnna : faceMarco;
-    const faceOk = face.complete && face.naturalWidth > 0;
-
-    if(faceOk){
+    // testa
+    if(face.complete && face.naturalWidth){
       ctx.save();
       ctx.beginPath();
-      ctx.arc(0, 0, 14, 0, Math.PI * 2);
+      ctx.arc(0,0,14,0,Math.PI*2);
       ctx.clip();
-      ctx.drawImage(face, -14, -14, 28, 28);
+      ctx.drawImage(face,-14,-14,28,28);
       ctx.restore();
-
-      ctx.strokeStyle = 'rgba(0,0,0,0.4)';
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.arc(0, 0, 14, 0, Math.PI * 2);
-      ctx.stroke();
     } else {
-      ctx.fillStyle = skin;
+      ctx.fillStyle=skin;
       ctx.beginPath();
       ctx.arc(0,0,14,0,Math.PI*2);
       ctx.fill();
     }
 
-    /* CORPO */
-    ctx.fillStyle = (name === 'Anna') ? '#7a5cff' : '#2f7bff';
-    ctx.fillRect(-12, 24, 24, 34);
+    // corpo
+    ctx.fillStyle = character==='Anna' ? '#7a5cff' : '#2f7bff';
+    ctx.fillRect(-12,22,24,34);
 
-    /* GAMBE (semplici) */
-    ctx.strokeStyle = '#2b2f3a';
-    ctx.lineWidth = 5;
+    // gambe
+    ctx.strokeStyle='#2b2f3a';
+    ctx.lineWidth=5;
     ctx.beginPath();
-    ctx.moveTo(-6, 58);
-    ctx.lineTo(-6 + Math.sin(phase)*6, 80);
-    ctx.moveTo(6, 58);
-    ctx.lineTo(6 - Math.sin(phase)*6, 80);
+    ctx.moveTo(-6,56);
+    ctx.lineTo(-6+Math.sin(phase)*6,80);
+    ctx.moveTo(6,56);
+    ctx.lineTo(6-Math.sin(phase)*6,80);
     ctx.stroke();
 
     ctx.restore();
   }
 
-  /* =========================================================
-     LOOP
-     ========================================================= */
-  function loop(){
+  /* ================== LOOP ================== */
+  function loop(ts){
+    if(!running) return;
+    const dt = (ts-lastTime)/1000 || 0;
+    lastTime = ts;
+
+    distance += speed*dt;
+
     ctx.clearRect(0,0,canvas.width,canvas.height);
 
-    /* cielo */
+    // cielo
     const g = ctx.createLinearGradient(0,0,0,canvas.height);
     g.addColorStop(0,'#0a1a39');
     g.addColorStop(1,'#7bb4ff');
-    ctx.fillStyle = g;
+    ctx.fillStyle=g;
     ctx.fillRect(0,0,canvas.width,canvas.height);
 
-    /* terreno */
-    ctx.fillStyle = '#2c332b';
-    ctx.fillRect(0, groundY(), canvas.width, canvas.height);
+    // terra
+    ctx.fillStyle='#2c332b';
+    ctx.fillRect(0,groundY(),canvas.width,canvas.height);
 
-    /* runner */
-    drawRunner(
-      canvas.width * 0.3,
-      groundY() - 80,
-      t,
-      character
-    );
+    drawRunner(canvas.width*0.3, groundY()-80, ts*0.01);
 
-    t += 0.08;
     requestAnimationFrame(loop);
   }
 
-  loop();
+  /* ================== UI ================== */
+  window.selectCharacter = (c) => character=c;
+
+  window.startGame = () => {
+    const input = document.getElementById('playerNameInput');
+    playerName = input.value.trim() || 'Anonimo';
+
+    distance = 0;
+    speed = 220;
+    lastTime = 0;
+    running = true;
+
+    document.getElementById('menu').classList.add('hidden');
+    requestAnimationFrame(loop);
+  };
+
+  function endGame(){
+    running = false;
+    const score = Math.floor(distance/10);
+    saveScore(playerName, score);
+
+    document.getElementById('finalName').textContent = playerName;
+    document.getElementById('finalScore').textContent = score;
+
+    renderLeaderboard(document.getElementById('leaderboardListOver'));
+    document.getElementById('gameover').classList.remove('hidden');
+  }
+
+  window.resetToMenu = () => {
+    document.getElementById('gameover').classList.add('hidden');
+    document.getElementById('menu').classList.remove('hidden');
+    renderLeaderboard(document.getElementById('leaderboardList'));
+  };
+
+  // fine partita cliccando
+  canvas.addEventListener('click',()=>{
+    if(running) endGame();
+  });
+
+  renderLeaderboard(document.getElementById('leaderboardList'));
 
 })();
 </script>
