@@ -1,270 +1,1118 @@
 <!doctype html>
 <html lang="it">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Cheese Rolling – Anna & Marco</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Cheese Rolling — v5.5 (Lampioni + Facce + Classifica)</title>
+  <style>
+    :root{--panel:rgba(15,20,35,.78);--accent:#ffcc00;--text:#eaf0ff;}
+    html,body{height:100%;margin:0;background:#081024;color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;overflow:hidden}
+    #wrap{position:relative;height:100%;}
+    canvas{position:absolute;inset:0;}
 
-<style>
-html,body{
-  margin:0;
-  height:100%;
-  background:#081024;
-  font-family:system-ui,Segoe UI,Roboto,Arial,sans-serif;
-  color:#eaf0ff;
-  overflow:hidden;
-}
-canvas{position:absolute;inset:0}
+    .hud{position:absolute;left:12px;top:12px;display:flex;gap:10px;flex-wrap:wrap;align-items:center;
+      background:rgba(0,0,0,.28);backdrop-filter:blur(6px);padding:10px 12px;border-radius:12px;border:1px solid rgba(255,255,255,.12);}
+    .hud b{font-variant-numeric:tabular-nums;}
+    .badge{display:inline-flex;gap:8px;align-items:center}
+    .dot{width:10px;height:10px;border-radius:99px;background:var(--accent);box-shadow:0 0 14px rgba(255,204,0,.7)}
 
-/* UI */
-.overlay{
-  position:absolute; inset:0;
-  display:flex; align-items:center; justify-content:center;
-}
-.panel{
-  background:rgba(15,20,35,.85);
-  border-radius:18px;
-  padding:20px;
-  width:min(420px,92vw);
-  text-align:center;
-  box-shadow:0 20px 60px rgba(0,0,0,.6);
-}
-input{
-  width:100%;
-  padding:10px;
-  border-radius:10px;
-  border:none;
-  margin:10px 0;
-  font-size:16px;
-}
-button{
-  padding:10px 16px;
-  border-radius:12px;
-  border:none;
-  background:#ffcc00;
-  font-weight:700;
-  cursor:pointer;
-}
-button:hover{background:#ffd633}
-.hidden{display:none}
+    .overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;}
+    .panel{width:min(780px,92vw);background:var(--panel);border:1px solid rgba(255,255,255,.14);
+      border-radius:18px;box-shadow:0 18px 60px rgba(0,0,0,.55);padding:18px 18px 16px;}
+    .panel h1{margin:0 0 14px;font-size:22px;letter-spacing:.2px;text-align:center}
+    .row{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;align-items:center}
+    button{cursor:pointer;border:0;border-radius:14px;padding:11px 14px;font-weight:650;
+      background:rgba(255,255,255,.10);color:var(--text);border:1px solid rgba(255,255,255,.16)}
+    button:hover{background:rgba(255,255,255,.16)}
+    .primary{background:rgba(255,204,0,.16);border-color:rgba(255,204,0,.45)}
+    .primary:hover{background:rgba(255,204,0,.22)}
+    .choice{flex:1;min-width:240px;display:flex;gap:10px;align-items:center;justify-content:space-between}
+    .chip{display:inline-flex;gap:8px;align-items:center;padding:6px 10px;border-radius:999px;
+      background:rgba(0,0,0,.18);border:1px solid rgba(255,255,255,.12);font-size:12px;color:rgba(234,240,255,.85)}
+    .kbd{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;background:rgba(0,0,0,.30);padding:2px 6px;border-radius:8px;border:1px solid rgba(255,255,255,.14)}
+    .hidden{display:none}
 
-.leaderboard{
-  margin-top:14px;
-  text-align:left;
-  font-size:14px;
-}
-.leaderboard h3{margin:8px 0}
-.leaderboard ol{padding-left:18px;margin:6px 0}
-</style>
+    .field{width:min(520px,92vw);margin:0 auto 10px}
+    input{
+      width:100%; box-sizing:border-box;
+      padding:10px 12px; border-radius:12px;
+      border:1px solid rgba(255,255,255,.14);
+      background:rgba(0,0,0,.25); color:var(--text);
+      outline:none; font-size:14px;
+    }
+
+    .lb{margin-top:12px;border-top:1px solid rgba(255,255,255,.12);padding-top:10px}
+    .lb h3{margin:6px 0 8px;font-size:14px;opacity:.92}
+    .lb ol{margin:0;padding-left:20px}
+    .lb li{margin:4px 0;opacity:.9}
+    .muted{opacity:.75;font-size:12px}
+  </style>
 </head>
-
 <body>
-<canvas id="c"></canvas>
+<div id="wrap">
+  <canvas id="c"></canvas>
 
-<!-- MENU -->
-<div class="overlay" id="menu">
-  <div class="panel">
-    <h1>🧀 Cheese Rolling</h1>
+  <div class="hud" id="hud" style="display:none">
+    <span class="badge"><span class="dot"></span><span><b id="meters">0</b> m</span></span>
+    <span class="badge">💍 <b id="rings">0</b></span>
+    <span class="chip" id="playerChip">Giocatore: —</span>
+    <span class="chip" id="charChip">Personaggio: —</span>
+    <span class="chip" id="envChip">Ambiente: —</span>
+    <span class="chip" id="hintChip">—</span>
+  </div>
 
-    <input id="playerNameInput" placeholder="Inserisci il tuo nome">
+  <div class="overlay" id="menu">
+    <div class="panel">
+      <h1>Cheese Rolling - Anna &amp; Marco</h1>
 
-    <div style="margin:10px 0">
-      <button onclick="selectCharacter('Anna')">Anna</button>
-      <button onclick="selectCharacter('Marco')">Marco</button>
-    </div>
+      <div class="field">
+        <input id="nameInput" placeholder="Inserisci nome giocatore (es. Luca)" maxlength="24" />
+        <div class="muted">La classifica si salva su questo browser (localStorage). Se migliori il tuo record, si aggiorna.</div>
+      </div>
 
-    <button onclick="startGame()">Inizia</button>
+      <div class="row" style="margin-bottom:12px">
+        <button class="choice primary" id="pickAnna"><span>Anna</span><span class="chip">maglia viola</span></button>
+        <button class="choice" id="pickMarco"><span>Marco</span><span class="chip">maglia blu</span></button>
+      </div>
 
-    <div class="leaderboard">
-      <h3>🏆 Classifica</h3>
-      <ol id="leaderboardList"></ol>
+      <div class="row">
+        <button id="start" class="primary">Inizia</button>
+        <button id="how">Come si gioca</button>
+      </div>
+
+      <div id="howBox" class="hidden" style="margin-top:12px;text-align:center;color:rgba(234,240,255,.86)">
+        <div style="margin-bottom:6px"><b>Obiettivo:</b> fai più metri possibile e raccogli più 💍 possibile.</div>
+        <div><b>Montagna:</b> salta i cespugli · <b>Città:</b> salta le auto · <span class="kbd">Spazio</span>/<span class="kbd">↑</span> salta · <span class="kbd">↓</span> accovacciati.</div>
+        <div class="muted" style="margin-top:6px">Negli ultimi metri prima del cambio scenario vedrai arrivare il nuovo pattern sulla destra.</div>
+      </div>
+
+      <div class="lb">
+        <h3>🏆 Classifica (Top 10)</h3>
+        <ol id="lbMenu"></ol>
+        <div class="muted" id="yourBestMenu"></div>
+      </div>
     </div>
   </div>
-</div>
 
-<!-- GAME OVER -->
-<div class="overlay hidden" id="gameover">
-  <div class="panel">
-    <h1>💥 Game Over</h1>
-    <p><b id="finalName"></b></p>
-    <p>Distanza: <b id="finalScore"></b> m</p>
+  <div class="overlay hidden" id="gameover">
+    <div class="panel">
+      <h1 style="margin:0 0 10px">💥 Game Over</h1>
+      <div class="muted" style="text-align:center;margin-bottom:10px">
+        <span id="finalName">—</span> · <b id="finalMeters">0</b> m · 💍 <b id="finalRings">0</b>
+      </div>
 
-    <div class="leaderboard">
-      <h3>🏆 Classifica</h3>
-      <ol id="leaderboardListOver"></ol>
+      <div class="row" style="margin-top:10px">
+        <button class="primary" id="retry">Riprova</button>
+        <button id="back">Torna al menu</button>
+      </div>
+
+      <div class="lb">
+        <h3>🏆 Classifica (Top 10)</h3>
+        <ol id="lbOver"></ol>
+        <div class="muted" id="yourBestOver"></div>
+      </div>
     </div>
-
-    <button onclick="resetToMenu()">Torna al menu</button>
   </div>
 </div>
 
 <script>
 (() => {
 
-  /* ================== IMMAGINI ================== */
+  /* =========================================================
+     FACCE REALI (file in ROOT del repo)
+     ========================================================= */
   const faceAnna = new Image();
-  faceAnna.src = 'Foto Anna.jpg';
-
+  faceAnna.src = 'Foto%20Anna.jpg';   // robusto su GitHub Pages
   const faceMarco = new Image();
-  faceMarco.src = 'Foto Marco.jpg';
+  faceMarco.src = 'Foto%20Marco.jpg';
 
-  /* ================== CANVAS ================== */
+  /* =========================================================
+     CANVAS
+     ========================================================= */
   const canvas = document.getElementById('c');
   const ctx = canvas.getContext('2d');
+  let W=0,H=0,DPR=1;
+
   function resize(){
-    canvas.width = innerWidth;
-    canvas.height = innerHeight;
+    DPR = Math.min(2, window.devicePixelRatio || 1);
+    W = Math.floor(window.innerWidth);
+    H = Math.floor(window.innerHeight);
+    canvas.width = Math.floor(W*DPR);
+    canvas.height = Math.floor(H*DPR);
+    canvas.style.width = W+'px';
+    canvas.style.height = H+'px';
+    ctx.setTransform(DPR,0,0,DPR,0,0);
+    makeCobblePattern();
   }
   addEventListener('resize', resize);
-  resize();
 
-  /* ================== STATO ================== */
-  let running = false;
-  let distance = 0;
-  let speed = 220;
-  let lastTime = 0;
+  /* =========================================================
+     UI REFERENCES
+     ========================================================= */
+  const hud = document.getElementById('hud');
+  const menu = document.getElementById('menu');
+  const over = document.getElementById('gameover');
+  const metersEl = document.getElementById('meters');
+  const ringsEl = document.getElementById('rings');
+  const envChip = document.getElementById('envChip');
+  const hintChip = document.getElementById('hintChip');
+  const charChip = document.getElementById('charChip');
+  const playerChip = document.getElementById('playerChip');
 
-  let playerName = '';
-  let character = 'Anna';
+  const finalMetersEl = document.getElementById('finalMeters');
+  const finalRingsEl  = document.getElementById('finalRings');
+  const finalNameEl   = document.getElementById('finalName');
 
-  const groundY = () => canvas.height * 0.78;
+  const pickAnna = document.getElementById('pickAnna');
+  const pickMarco = document.getElementById('pickMarco');
+  const startBtn = document.getElementById('start');
+  const howBtn = document.getElementById('how');
+  const howBox = document.getElementById('howBox');
+  const retryBtn = document.getElementById('retry');
+  const backBtn = document.getElementById('back');
+  const nameInput = document.getElementById('nameInput');
 
-  /* ================== LEADERBOARD ================== */
+  const lbMenu = document.getElementById('lbMenu');
+  const lbOver = document.getElementById('lbOver');
+  const yourBestMenu = document.getElementById('yourBestMenu');
+  const yourBestOver = document.getElementById('yourBestOver');
+
+  /* =========================================================
+     LEADERBOARD (localStorage)
+     ========================================================= */
+  const LB_KEY = 'cheese_rolling_leaderboard_v1';
+
   function loadScores(){
-    return JSON.parse(localStorage.getItem('cheeseScores') || '{}');
+    try { return JSON.parse(localStorage.getItem(LB_KEY) || '{}'); }
+    catch { return {}; }
   }
-
-  function saveScore(name, score){
-    const scores = loadScores();
-    if(!scores[name] || score > scores[name]){
-      scores[name] = score;
+  function saveBest(name, score){
+    const data = loadScores();
+    const prev = data[name];
+    if(prev == null || score > prev){
+      data[name] = score;
+      localStorage.setItem(LB_KEY, JSON.stringify(data));
+      return true; // improved
     }
-    localStorage.setItem('cheeseScores', JSON.stringify(scores));
+    return false;
   }
-
-  function getLeaderboard(){
-    const scores = loadScores();
-    return Object.entries(scores)
-      .sort((a,b)=>b[1]-a[1])
+  function top10(){
+    const data = loadScores();
+    return Object.entries(data)
+      .map(([n,s])=>({name:n,score:Math.floor(s)}))
+      .sort((a,b)=>b.score-a.score)
       .slice(0,10);
   }
-
-  function renderLeaderboard(el){
-    const data = getLeaderboard();
-    el.innerHTML = '';
-    data.forEach(([name,score])=>{
-      const li = document.createElement('li');
-      li.textContent = `${name} — ${score} m`;
-      el.appendChild(li);
-    });
+  function bestOf(name){
+    const data = loadScores();
+    return data[name] == null ? null : Math.floor(data[name]);
+  }
+  function renderLeaderboard(listEl, bestEl, currentName){
+    const data = top10();
+    listEl.innerHTML = '';
+    if(data.length===0){
+      const li=document.createElement('li');
+      li.textContent='Nessun punteggio ancora';
+      listEl.appendChild(li);
+    } else {
+      data.forEach((r,i)=>{
+        const li=document.createElement('li');
+        li.textContent = `${r.name} — ${r.score} m`;
+        listEl.appendChild(li);
+      });
+    }
+    const best = currentName ? bestOf(currentName) : null;
+    bestEl.textContent = currentName
+      ? (best==null ? `Il tuo record: —` : `Il tuo record: ${best} m`)
+      : '';
   }
 
-  /* ================== RUNNER ================== */
-  function drawRunner(x,y,phase){
+  /* =========================================================
+     GAME STATE
+     ========================================================= */
+  const STATE={MENU:0,RUN:1,OVER:2};
+  let state=STATE.MENU;
+
+  let playerName = '';
+  let character='Anna';
+
+  function setCharacter(c){
+    character=c;
+    charChip.textContent='Personaggio: '+c;
+    if(c==='Anna'){ pickAnna.classList.add('primary'); pickMarco.classList.remove('primary'); }
+    else { pickMarco.classList.add('primary'); pickAnna.classList.remove('primary'); }
+  }
+  setCharacter('Anna');
+  pickAnna.onclick=()=>setCharacter('Anna');
+  pickMarco.onclick=()=>setCharacter('Marco');
+
+  howBtn.onclick=()=>howBox.classList.toggle('hidden');
+
+  /* =========================================================
+     WORLD GEOMETRY
+     ========================================================= */
+  const groundBase=()=>H*0.80;
+  const slope=()=>H*0.18/W;
+  const groundY=(x)=>groundBase()+slope()*(x-W*0.25);
+
+  /* =========================================================
+     HELPERS
+     ========================================================= */
+  const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+  const lerp=(a,b,t)=>a+(b-a)*t;
+  const smooth=(t)=>t*t*(3-2*t);
+
+  function roundRect(x,y,w,h,r){
+    const rr=Math.min(r,w/2,h/2);
+    ctx.beginPath();
+    ctx.moveTo(x+rr,y);
+    ctx.arcTo(x+w,y,x+w,y+h,rr);
+    ctx.arcTo(x+w,y+h,x,y+h,rr);
+    ctx.arcTo(x,y+h,x,y,rr);
+    ctx.arcTo(x,y,x+w,y,rr);
+    ctx.closePath();
+  }
+
+  function rectsOverlap(a,b){
+    return a.x < b.x+b.w && a.x+a.w > b.x && a.y < b.y+b.h && a.y+a.h > b.y;
+  }
+  function circleRectOverlap(cx,cy,cr, rx,ry,rw,rh){
+    const px=Math.max(rx,Math.min(cx,rx+rw));
+    const py=Math.max(ry,Math.min(cy,ry+rh));
+    const dx=cx-px, dy=cy-py;
+    return dx*dx+dy*dy <= cr*cr;
+  }
+
+  /* =========================================================
+     ENV MODES + PREVIEW STRIP
+     ========================================================= */
+  // 0 mountain, 1 city
+  function envMode(){ return (Math.floor(distMeters/1000) % 2); }
+  function nextEnvMode(){ return ((Math.floor(distMeters/1000)+1) % 2); }
+
+  function previewFactor(){
+    const local = distMeters % 1000;
+    const start = 840; // last 160m
+    if(local <= start) return 0;
+    return smooth(clamp((local-start)/(1000-start),0,1));
+  }
+
+  /* =========================================================
+     PHYSICS / ENTITIES
+     ========================================================= */
+  const metersPerPixel=0.05;
+  const gravity=2550;
+  const jumpV=1020;
+
+  const player={
+    x:()=>W*0.22,
+    y:0, vy:0,
+    w:36,
+    h:84,
+    crouch:false,
+    onGround:true,
+    runT:0
+  };
+
+  const cheese={x:0,y:0,r:18,rot:0};
+
+  let obstacles=[]; // bush (mountain) or car (city)
+  let rings=[];
+  let signs=[];
+
+  let nextObs=0.75, nextRing=1.00, nextMilestone=500;
+  let speed=455, speedAdd=10.5;
+  let distMeters=0, ringsCount=0;
+  let lastMode=0;
+
+  /* =========================================================
+     COBBLE PATTERN (cached)
+     ========================================================= */
+  let cobblePattern = null;
+  function makeCobblePattern(){
+    const s = 420;
+    const off = document.createElement('canvas');
+    off.width = s; off.height = s;
+    const g = off.getContext('2d');
+
+    const base = g.createLinearGradient(0,0,0,s);
+    base.addColorStop(0,'#7b8086');
+    base.addColorStop(0.65,'#535a63');
+    base.addColorStop(1,'#2e343c');
+    g.fillStyle = base;
+    g.fillRect(0,0,s,s);
+
+    g.globalAlpha = 0.22;
+    g.strokeStyle = 'rgba(255,255,255,0.18)';
+    g.lineWidth = 1;
+    const rows = 14;
+    const cols = 12;
+    for(let r=0;r<rows;r++){
+      const yy = 120 + r*18;
+      const wob = Math.sin(r*0.9)*6;
+      for(let c=0;c<cols;c++){
+        const xx = c*(s/cols) + wob;
+        const y = yy + Math.sin((c*0.7)+r)*2;
+        g.beginPath();
+        g.ellipse(xx, y, 18, 7, 0.08, 0, Math.PI*2);
+        g.stroke();
+      }
+    }
+    cobblePattern = ctx.createPattern(off,'repeat');
+  }
+
+  /* =========================================================
+     INPUT
+     ========================================================= */
+  function jump(){
+    if(player.onGround){
+      player.vy = -jumpV;
+      player.onGround=false;
+    }
+  }
+
+  addEventListener('keydown',(e)=>{
+    if(['Space','ArrowUp','ArrowDown'].includes(e.code)) e.preventDefault();
+    if(state===STATE.RUN){
+      if(e.code==='Space'||e.code==='ArrowUp') jump();
+      if(e.code==='ArrowDown') player.crouch=true;
+    }
+    if(state===STATE.OVER && (e.code==='Space'||e.code==='Enter')) start();
+  },{passive:false});
+  addEventListener('keyup',(e)=>{ if(e.code==='ArrowDown') player.crouch=false; });
+
+  canvas.addEventListener('pointerdown',()=>{
+    if(state===STATE.RUN) jump();
+    else if(state===STATE.MENU) start();
+    else if(state===STATE.OVER) start();
+  });
+
+  /* =========================================================
+     SPAWNS
+     ========================================================= */
+  function spawnBush(){
+    const h=50+Math.random()*60;
+    const w=78+Math.random()*90;
+    const x=W+60+Math.random()*160;
+    const seed=Math.random()*9999;
+    const lumps=4+Math.floor(Math.random()*3);
+    obstacles.push({type:'bush', x,w,h, seed, lumps});
+  }
+
+  function spawnCar(){
+    const w=96+Math.random()*70;
+    const h=34+Math.random()*10;
+    const x=W+70+Math.random()*190;
+    const col=['#d94c4c','#2f7bff','#2f9b72','#6a5b3a','#7a5cff','#3a566b'][Math.floor(Math.random()*6)];
+    obstacles.push({type:'car', x,w,h, col});
+  }
+
+  function spawnRing(){
+    const r=16+Math.random()*4;
+    const x=W+40+Math.random()*180;
+    const gy=groundY(x);
+    const y=gy-(120+Math.random()*170);
+    rings.push({x,y,r,spin:Math.random()*Math.PI*2});
+  }
+
+  function spawnMilestoneSign(m){
+    const x=W+90+Math.random()*140;
+    signs.push({x, label:`${m} m`, kind:'mile'});
+  }
+
+  /* =========================================================
+     BACKGROUNDS
+     ========================================================= */
+  function drawSkyDay(){
+    const sky = ctx.createLinearGradient(0,0,0,H);
+    sky.addColorStop(0,'#0a1a39');
+    sky.addColorStop(0.38,'#1b4d8f');
+    sky.addColorStop(0.75,'#7bb4ff');
+    sky.addColorStop(1,'#bfe1ff');
+    ctx.fillStyle=sky;
+    ctx.fillRect(0,0,W,H);
+
     ctx.save();
-    ctx.translate(x,y);
+    ctx.globalAlpha=0.28;
+    const sx=W*0.18, sy=H*0.16;
+    const sun=ctx.createRadialGradient(sx,sy,0,sx,sy,Math.min(W,H)*0.28);
+    sun.addColorStop(0,'rgba(255,255,255,0.85)');
+    sun.addColorStop(1,'rgba(255,255,255,0)');
+    ctx.fillStyle=sun;
+    ctx.fillRect(0,0,W,H);
+    ctx.restore();
+  }
 
-    const face = (character==='Anna') ? faceAnna : faceMarco;
-    const skin = '#f2c7a5';
-
-    // testa
-    if(face.complete && face.naturalWidth){
+  function drawBackgroundMountain(t){
+    drawSkyDay();
+    layer(0.44,'#2a3f68',0.00016,16,t);
+    layer(0.56,'#1f3154',0.00022,22,t+8000);
+    layer(0.66,'#172642',0.00030,28,t+17000);
+    function layer(yFrac,color,drift,amp,tt){
       ctx.save();
+      ctx.fillStyle=color;
       ctx.beginPath();
-      ctx.arc(0,0,14,0,Math.PI*2);
-      ctx.clip();
-      ctx.drawImage(face,-14,-14,28,28);
-      ctx.restore();
-    } else {
-      ctx.fillStyle=skin;
-      ctx.beginPath();
-      ctx.arc(0,0,14,0,Math.PI*2);
+      ctx.moveTo(0,H*yFrac);
+      for(let x=0;x<=W;x+=88){
+        const y = H*yFrac + Math.sin((x*0.008)+(tt*drift))*amp + Math.sin((x*0.017)+(tt*drift*1.35))*amp*0.55;
+        ctx.lineTo(x,y);
+      }
+      ctx.lineTo(W,H); ctx.lineTo(0,H); ctx.closePath();
       ctx.fill();
+      ctx.restore();
+    }
+  }
+
+  // City: ONLY sky + distant lamppost silhouettes (no glow)
+  function drawBackgroundCity(t){
+    drawSkyDay();
+    drawLampioni(t);
+
+    ctx.save();
+    ctx.globalAlpha=0.08;
+    const fog=ctx.createLinearGradient(0,H*0.30,0,H*0.85);
+    fog.addColorStop(0,'rgba(255,255,255,0)');
+    fog.addColorStop(1,'rgba(255,255,255,0.14)');
+    ctx.fillStyle=fog;
+    ctx.fillRect(0,0,W,H);
+    ctx.restore();
+  }
+
+  function drawLampioni(t){
+    const horizon = H*0.52;
+    const spacing = 220;
+    const drift = (t*0.03) % spacing;
+
+    ctx.save();
+    ctx.globalAlpha=0.40;
+    ctx.strokeStyle='rgba(30,35,45,0.9)';
+    ctx.fillStyle='rgba(30,35,45,0.9)';
+    ctx.lineWidth=4;
+
+    for(let i=-1;i<Math.ceil(W/spacing)+2;i++){
+      const x = i*spacing - drift;
+      const tall = 82 + (i%3)*14;
+      const y0 = horizon + 10;
+      const y1 = y0 - tall;
+
+      ctx.beginPath(); ctx.moveTo(x,y0); ctx.lineTo(x,y1); ctx.stroke();
+
+      ctx.lineWidth=3;
+      ctx.beginPath(); ctx.moveTo(x,y1+10); ctx.lineTo(x+22,y1+18); ctx.stroke();
+
+      ctx.lineWidth=1;
+      roundRect(x+16, y1+14, 14, 10, 4);
+      ctx.fill();
+
+      ctx.lineWidth=4;
     }
 
-    // corpo
-    ctx.fillStyle = character==='Anna' ? '#7a5cff' : '#2f7bff';
-    ctx.fillRect(-12,22,24,34);
-
-    // gambe
-    ctx.strokeStyle='#2b2f3a';
-    ctx.lineWidth=5;
+    ctx.globalAlpha=0.20;
+    ctx.strokeStyle='rgba(30,35,45,0.75)';
+    ctx.lineWidth=2;
     ctx.beginPath();
-    ctx.moveTo(-6,56);
-    ctx.lineTo(-6+Math.sin(phase)*6,80);
-    ctx.moveTo(6,56);
-    ctx.lineTo(6-Math.sin(phase)*6,80);
+    ctx.moveTo(0,horizon+16);
+    ctx.lineTo(W,horizon+16);
     ctx.stroke();
 
     ctx.restore();
   }
 
-  /* ================== LOOP ================== */
-  function loop(ts){
-    if(!running) return;
-    const dt = (ts-lastTime)/1000 || 0;
-    lastTime = ts;
-
-    distance += speed*dt;
-
-    ctx.clearRect(0,0,canvas.width,canvas.height);
-
-    // cielo
-    const g = ctx.createLinearGradient(0,0,0,canvas.height);
-    g.addColorStop(0,'#0a1a39');
-    g.addColorStop(1,'#7bb4ff');
-    ctx.fillStyle=g;
-    ctx.fillRect(0,0,canvas.width,canvas.height);
-
-    // terra
-    ctx.fillStyle='#2c332b';
-    ctx.fillRect(0,groundY(),canvas.width,canvas.height);
-
-    drawRunner(canvas.width*0.3, groundY()-80, ts*0.01);
-
-    requestAnimationFrame(loop);
+  function drawBackground(mode, t){
+    if(mode===0) drawBackgroundMountain(t);
+    else drawBackgroundCity(t);
   }
 
-  /* ================== UI ================== */
-  window.selectCharacter = (c) => character=c;
+  /* =========================================================
+     GROUNDS
+     ========================================================= */
+  function drawGroundMountain(){
+    const y0=groundY(0), y1=groundY(W);
+    ctx.save();
+    const g=ctx.createLinearGradient(0,Math.min(y0,y1)-80,0,H);
+    g.addColorStop(0,'#6f8862');
+    g.addColorStop(0.45,'#4f6246');
+    g.addColorStop(1,'#2c332b');
+    ctx.fillStyle=g;
+    ctx.beginPath();
+    ctx.moveTo(0,y0); ctx.lineTo(W,y1); ctx.lineTo(W,H); ctx.lineTo(0,H); ctx.closePath();
+    ctx.fill();
+    ctx.globalAlpha=0.14;
+    ctx.strokeStyle='#1b1f1b';
+    for(let i=0;i<18;i++){
+      const x=(i/17)*W;
+      const y=groundY(x);
+      ctx.beginPath();
+      ctx.moveTo(x-50,y+18);
+      ctx.lineTo(x+80,y+24);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
 
-  window.startGame = () => {
-    const input = document.getElementById('playerNameInput');
-    playerName = input.value.trim() || 'Anonimo';
+  function drawGroundCity(){
+    const y0=groundY(0), y1=groundY(W);
+    ctx.save();
+    ctx.fillStyle=cobblePattern || '#444';
+    ctx.beginPath();
+    ctx.moveTo(0,y0); ctx.lineTo(W,y1); ctx.lineTo(W,H); ctx.lineTo(0,H); ctx.closePath();
+    ctx.fill();
+    ctx.globalAlpha=0.14;
+    const shade=ctx.createLinearGradient(0,Math.min(y0,y1)-40,0,H);
+    shade.addColorStop(0,'rgba(0,0,0,0)');
+    shade.addColorStop(1,'rgba(0,0,0,0.28)');
+    ctx.fillStyle=shade;
+    ctx.fillRect(0,0,W,H);
+    ctx.restore();
+  }
 
-    distance = 0;
-    speed = 220;
-    lastTime = 0;
-    running = true;
+  function drawGround(mode){
+    if(mode===0) drawGroundMountain();
+    else drawGroundCity();
+  }
 
-    document.getElementById('menu').classList.add('hidden');
-    requestAnimationFrame(loop);
+  function drawUpcomingPreview(){
+    const f = previewFactor();
+    if(f<=0){ return; }
+
+    const next = nextEnvMode();
+    const stripW = lerp(0, W*0.42, f);
+    const x0 = W - stripW;
+
+    const y0 = groundY(x0);
+    const y1 = groundY(W);
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(x0,y0);
+    ctx.lineTo(W,y1);
+    ctx.lineTo(W,H);
+    ctx.lineTo(x0,H);
+    ctx.closePath();
+    ctx.clip();
+
+    if(next===0) drawGroundMountain();
+    else drawGroundCity();
+
+    ctx.globalAlpha = 0.35;
+    ctx.strokeStyle='rgba(255,255,255,0.55)';
+    ctx.lineWidth=3;
+    ctx.beginPath();
+    ctx.moveTo(x0,y0);
+    ctx.lineTo(x0,H);
+    ctx.stroke();
+    ctx.restore();
+
+    hintChip.textContent = (next===0) ? 'Cambio in arrivo: Montagna' : 'Cambio in arrivo: Città';
+  }
+
+  /* =========================================================
+     SIGNS (start + every 500m)
+     ========================================================= */
+  function drawSign(s){
+    const gy=groundY(s.x);
+    const poleH=82;
+    const boardW=s.kind==='start' ? 360 : 260;
+    const boardH=s.kind==='start' ? 64 : 56;
+    const topY=gy-poleH-boardH;
+
+    ctx.save();
+    ctx.globalAlpha=0.16;
+    ctx.fillStyle='rgba(0,0,0,0.6)';
+    ctx.beginPath();
+    ctx.ellipse(s.x+18,gy+10,boardW*0.35,10,0.15,0,Math.PI*2);
+    ctx.fill();
+    ctx.restore();
+
+    ctx.save();
+    ctx.strokeStyle='rgba(60,45,30,0.95)';
+    ctx.lineWidth=6;
+    ctx.beginPath();
+    ctx.moveTo(s.x,gy);
+    ctx.lineTo(s.x,gy-poleH);
+    ctx.stroke();
+
+    const wood=ctx.createLinearGradient(0,topY,0,topY+boardH);
+    wood.addColorStop(0,'#7a5533');
+    wood.addColorStop(1,'#55351f');
+
+    ctx.fillStyle=wood;
+    ctx.strokeStyle='rgba(0,0,0,0.35)';
+    ctx.lineWidth=2;
+    roundRect(s.x-boardW/2,topY,boardW,boardH,12);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle='rgba(255,255,255,0.95)';
+    ctx.textAlign='center';
+    ctx.textBaseline='middle';
+    ctx.font='900 22px system-ui';
+    ctx.fillText(s.label,s.x,topY+boardH/2);
+
+    if(s.kind==='start'){
+      ctx.globalAlpha=0.85;
+      ctx.font='800 14px system-ui';
+      ctx.fillText('RUN!',s.x,topY+boardH-14);
+    }
+
+    ctx.restore();
+  }
+
+  /* =========================================================
+     DRAW OBSTACLES + RINGS + CHEESE
+     ========================================================= */
+  function drawBush(o){
+    const baseY=groundY(o.x);
+    const topY=baseY-o.h;
+
+    ctx.save();
+    ctx.globalAlpha=0.25;
+    ctx.fillStyle='rgba(0,0,0,0.6)';
+    ctx.beginPath();
+    ctx.ellipse(o.x+o.w*0.5, baseY+9, o.w*0.58, 10, 0.12, 0, Math.PI*2);
+    ctx.fill();
+    ctx.restore();
+
+    const cx=o.x+o.w*0.5;
+    const cy=baseY-o.h*0.50;
+
+    ctx.save();
+    const grad=ctx.createLinearGradient(0,topY,0,baseY);
+    grad.addColorStop(0,'#3d7a3a');
+    grad.addColorStop(1,'#163318');
+    ctx.fillStyle=grad;
+
+    const s=o.seed;
+    const lumpCount=o.lumps;
+    for(let i=0;i<lumpCount;i++){
+      const a=(i/(lumpCount))*Math.PI*2;
+      const rx=o.w*(0.26+(Math.sin(s+i*31)*0.08));
+      const ry=o.h*(0.20+(Math.cos(s+i*17)*0.06));
+      const ox=Math.cos(a)*o.w*0.18 + Math.sin(s+i*9)*7;
+      const oy=Math.sin(a)*o.h*0.12 + Math.cos(s+i*11)*6;
+      ctx.beginPath();
+      ctx.ellipse(cx+ox, cy+oy, rx, ry, 0, 0, Math.PI*2);
+      ctx.fill();
+    }
+
+    ctx.restore();
+  }
+
+  function drawCar(o){
+    const gy=groundY(o.x);
+    const y=gy - o.h;
+    const x=o.x;
+
+    ctx.save();
+    ctx.globalAlpha=0.20;
+    ctx.fillStyle='rgba(0,0,0,0.55)';
+    ctx.beginPath();
+    ctx.ellipse(x+o.w*0.52, gy+10, o.w*0.42, 8, 0.10, 0, Math.PI*2);
+    ctx.fill();
+    ctx.restore();
+
+    ctx.save();
+    ctx.fillStyle=o.col;
+    roundRect(x, y, o.w, o.h, 10);
+    ctx.fill();
+
+    ctx.globalAlpha=0.90;
+    ctx.fillStyle='rgba(255,255,255,0.18)';
+    roundRect(x+o.w*0.18, y- o.h*0.55, o.w*0.46, o.h*0.65, 10);
+    ctx.fill();
+
+    ctx.globalAlpha=0.45;
+    ctx.fillStyle='rgba(210,240,255,0.35)';
+    roundRect(x+o.w*0.22, y- o.h*0.48, o.w*0.18, o.h*0.40, 6);
+    roundRect(x+o.w*0.44, y- o.h*0.48, o.w*0.18, o.h*0.40, 6);
+    ctx.fill();
+
+    ctx.globalAlpha=1;
+    ctx.fillStyle='#141519';
+    ctx.beginPath(); ctx.arc(x+o.w*0.24, gy-4, 8, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(x+o.w*0.76, gy-4, 8, 0, Math.PI*2); ctx.fill();
+
+    ctx.restore();
+  }
+
+  function drawRing(rg){
+    ctx.save();
+    ctx.globalAlpha = 0.20;
+    ctx.fillStyle = 'rgba(0,0,0,0.55)';
+    ctx.beginPath();
+    ctx.ellipse(rg.x+10, rg.y+10, rg.r*1.18, rg.r*0.50, 0.18, 0, Math.PI*2);
+    ctx.fill();
+    ctx.restore();
+
+    ctx.save();
+    ctx.translate(rg.x, rg.y);
+    ctx.rotate(Math.sin(rg.spin)*0.12);
+    ctx.save();
+    ctx.scale(1.35, 0.90);
+
+    const outerR = rg.r*1.15;
+    const innerR = rg.r*0.60;
+
+    const gold = ctx.createLinearGradient(-outerR, -outerR, outerR, outerR);
+    gold.addColorStop(0.00,'#fff3c0');
+    gold.addColorStop(0.25,'#ffd77a');
+    gold.addColorStop(0.55,'#ffb300');
+    gold.addColorStop(0.80,'#c98500');
+    gold.addColorStop(1.00,'#6f4200');
+
+    ctx.fillStyle = gold;
+    ctx.beginPath();
+    ctx.arc(0,0,outerR,0,Math.PI*2);
+    ctx.arc(0,0,innerR,0,Math.PI*2,true);
+    ctx.fill('evenodd');
+
+    ctx.globalAlpha = 0.55;
+    ctx.strokeStyle = 'rgba(255,255,255,0.75)';
+    ctx.lineWidth = 2.6;
+    ctx.beginPath();
+    ctx.arc(outerR*0.02, -outerR*0.08, outerR*0.78, -1.20, -0.25);
+    ctx.stroke();
+
+    ctx.restore();
+    ctx.restore();
+  }
+
+  function drawCheese(){
+    const gy = groundY(cheese.x);
+
+    ctx.save();
+    ctx.globalAlpha = 0.20;
+    ctx.fillStyle = 'rgba(0,0,0,0.65)';
+    const sh = 4 + Math.abs(Math.sin(cheese.rot))*2;
+    ctx.beginPath();
+    ctx.ellipse(cheese.x+6, gy+8, cheese.r*1.05, sh, 0.10, 0, Math.PI*2);
+    ctx.fill();
+    ctx.restore();
+
+    ctx.save();
+    ctx.translate(cheese.x, cheese.y);
+    ctx.rotate(cheese.rot);
+
+    const cg = ctx.createRadialGradient(-6,-6,4, 0,0,cheese.r+10);
+    cg.addColorStop(0,'#fff2a0');
+    cg.addColorStop(0.55,'#ffd35f');
+    cg.addColorStop(1,'#eaa100');
+    ctx.fillStyle = cg;
+    ctx.beginPath();
+    ctx.arc(0,0,cheese.r,0,Math.PI*2);
+    ctx.fill();
+
+    ctx.globalAlpha = 0.40;
+    ctx.strokeStyle = '#b97f00';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(0,0,cheese.r-1.5,0,Math.PI*2);
+    ctx.stroke();
+
+    ctx.restore();
+  }
+
+  /* =========================================================
+     RUNNER + REAL FACE HEAD (integrato correttamente)
+     ========================================================= */
+  function drawRunner(px, py, crouch, phase, name){
+    ctx.save();
+
+    // posiziona il personaggio nel mondo
+    const angSlope = Math.atan(slope());
+    const bodyH = crouch ? 66 : 84;
+
+    ctx.translate(px, py);
+    ctx.rotate(angSlope*0.36 + Math.sin(phase+0.4)*0.055);
+
+    const shirt = (name==='Anna') ? '#7a5cff' : '#2f7bff';
+    const pants = '#2b2f3a';
+    const skin  = '#f2c7a5';
+
+    // torso
+    ctx.fillStyle = shirt;
+    roundRect(-12, 18, 24, crouch?30:34, 8);
+    ctx.fill();
+
+    // pelvis
+    ctx.fillStyle = pants;
+    roundRect(-13, 48, 26, 14, 7);
+    ctx.fill();
+
+    // neck
+    ctx.fillStyle = skin;
+    roundRect(-4, 10, 8, 10, 4);
+    ctx.fill();
+
+    // HEAD (face or fallback)
+    const face = (name === 'Anna') ? faceAnna : faceMarco;
+    const faceOk = face && face.complete && face.naturalWidth > 0;
+
+    if(faceOk){
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(0,0,12,0,Math.PI*2);
+      ctx.clip();
+      ctx.drawImage(face, -12, -12, 24, 24);
+      ctx.restore();
+
+      ctx.save();
+      ctx.globalAlpha = 0.22;
+      ctx.strokeStyle = 'rgba(0,0,0,0.55)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(0,0,12,0,Math.PI*2);
+      ctx.stroke();
+      ctx.restore();
+    } else {
+      ctx.beginPath();
+      ctx.arc(0,0,12,0,Math.PI*2);
+      ctx.fill();
+      // hair in fallback
+      ctx.fillStyle = (name==='Anna') ? '#2d1f1b' : '#3a2a1e';
+      ctx.beginPath();
+      ctx.arc(-2,-2,13, Math.PI*1.05, Math.PI*1.95);
+      ctx.fill();
+    }
+
+    // arms
+    const armSwing = Math.sin(phase + Math.PI)*0.95;
+    ctx.strokeStyle = skin;
+    ctx.lineWidth=4;
+    ctx.lineCap='round';
+
+    function arm(x0,y0,dir){
+      const a = dir*(0.55 + armSwing*0.55);
+      const x1=x0+Math.cos(a)*19;
+      const y1=y0+Math.sin(a)*19;
+      const a2=a+(Math.sin(a*1.6)*0.28);
+      const x2=x1+Math.cos(a2)*18;
+      const y2=y1+Math.sin(a2)*18;
+      ctx.beginPath();
+      ctx.moveTo(x0,y0); ctx.lineTo(x1,y1); ctx.lineTo(x2,y2);
+      ctx.stroke();
+    }
+    arm( 10,28, +1);
+    arm(-10,30, -1);
+
+    // legs (simple)
+    ctx.strokeStyle = pants;
+    ctx.lineWidth = 5;
+    const leg = Math.sin(phase)*6;
+    ctx.beginPath();
+    ctx.moveTo(-6, 60); ctx.lineTo(-6+leg, bodyH);
+    ctx.moveTo( 6, 60); ctx.lineTo( 6-leg, bodyH);
+    ctx.stroke();
+
+    // feet
+    ctx.fillStyle='#141519';
+    roundRect(-10+leg, bodyH-2, 18, 6, 3); ctx.fill();
+    roundRect( -2-leg, bodyH-2, 18, 6, 3); ctx.fill();
+
+    ctx.restore();
+  }
+
+  /* =========================================================
+     MENU / START / END
+     ========================================================= */
+  function resetRun(){
+    obstacles=[]; rings=[]; signs=[];
+    speed=455; distMeters=0; ringsCount=0;
+    nextObs=0.75; nextRing=1.00; nextMilestone=500;
+    player.vy=0; player.crouch=false; player.runT=0; player.onGround=true; player.h=84;
+    player.y = groundY(player.x()) - player.h;
+    cheese.rot=0;
+    lastMode=envMode();
+    signs.push({x: W*0.65, label: 'Cheese Rolling - Start', kind:'start'});
+  }
+
+  function start(){
+    playerName = (nameInput.value || '').trim();
+    if(!playerName) playerName = 'Anonimo';
+    playerChip.textContent = 'Giocatore: ' + playerName;
+
+    resetRun();
+    hud.style.display='flex';
+    menu.classList.add('hidden');
+    over.classList.add('hidden');
+    state=STATE.RUN;
+  }
+
+  startBtn.onclick=start;
+  retryBtn.onclick=start;
+
+  backBtn.onclick=()=>{
+    state=STATE.MENU;
+    hud.style.display='none';
+    over.classList.add('hidden');
+    menu.classList.remove('hidden');
+    renderLeaderboard(lbMenu, yourBestMenu, (nameInput.value||'').trim() || null);
   };
 
   function endGame(){
-    running = false;
-    const score = Math.floor(distance/10);
-    saveScore(playerName, score);
+    state=STATE.OVER;
+    over.classList.remove('hidden');
 
-    document.getElementById('finalName').textContent = playerName;
-    document.getElementById('finalScore').textContent = score;
+    const score = Math.floor(distMeters);
+    finalMetersEl.textContent = score.toString();
+    finalRingsEl.textContent  = ringsCount.toString();
+    finalNameEl.textContent   = `${playerName} (${character})`;
 
-    renderLeaderboard(document.getElementById('leaderboardListOver'));
-    document.getElementById('gameover').classList.remove('hidden');
+    saveBest(playerName, score);
+
+    renderLeaderboard(lbOver, yourBestOver, playerName);
   }
 
-  window.resetToMenu = () => {
-    document.getElementById('gameover').classList.add('hidden');
-    document.getElementById('menu').classList.remove('hidden');
-    renderLeaderboard(document.getElementById('leaderboardList'));
-  };
+  /* =========================================================
+     MAIN LOOP
+     ========================================================= */
+  let last = performance.now();
+  function frame(now){
+    const dt=Math.min(0.033,(now-last)/1000);
+    last=now;
 
-  // fine partita cliccando
-  canvas.addEventListener('click',()=>{
-    if(running) endGame();
-  });
+    if(state===STATE.RUN) update(dt, now);
+    render(now);
 
-  renderLeaderboard(document.getElementById('leaderboardList'));
+    requestAnimationFrame(frame);
+  }
+
+  function update(dt, now){
+    // speed and distance
+    speed += speedAdd*dt;
+    const dx = speed*dt;
+    distMeters += dx*metersPerPixel;
+
+    // scenario switch (we WARN via preview strip; here we only clear obstacles)
+    const mode = envMode();
+    if(mode !== lastMode){
+      obstacles = [];
+      nextObs = 0.35;
+      lastMode = mode;
+    }
+
+    // hint
+    hintChip.textContent = (mode===0) ? 'Montagna: salta i cespugli' : 'Città: salta le auto';
+
+    // player physics
+    const px = player.x();
+    const base = groundY(px);
+    player.h = player.crouch ? 66 : 84;
+
+    player.vy += gravity*dt;
+    player.y += player.vy*dt;
+
+    const groundTop = base - player.h;
+    if(player.y >= groundTop){ player.y = groundTop; player.vy = 0; player.onGround = true; }
+    else player.onGround = false;
+
+    // run animation
+    const pace=(speed/520);
+    if(player.onGround) player.runT += dt*6.9*pace;
+
+    // cheese ahead (hug ground with bounce)
+    cheese.x = px + 140;
+    const gY = groundY(cheese.x);
+    const rough = (Math.sin(cheese.x*0.12) + Math.sin(cheese.x*0.045)*0.7 + Math.sin(now*0.004))*0.5;
+    const micro = Math.abs(Math.sin(cheese.x*0.21 + now*0.003))*0.6;
+    const hop = Math.max(0, rough-0.10)*7.0 + micro*2.0;
+    cheese.y = gY - cheese.r - 2 + hop;
+    cheese.rot += (speed*dt)/(cheese.r) * (0.85 + hop*0.02);
+
+    // spawns
+    nextObs -= dt;
+    if(nextObs <= 0){
+      if(mode===0) spawnBush();
+      else spawnCar();
+      nextObs = (mode===0 ? (0.78 + Math.random()*0.92) : (0.85 + Math.random()*0.95));
+      if(distMeters>260) nextObs -= 0.08;
+    }
+
+    nextRing -= dt;
+    if(nextRing <= 0){
+      if(Math.random() < 0.70) spawnRing();
+      nextRing = 1.05 + Math.random()*1.30;
+    }
+
+    while(distMeters >= nextMilestone){
+      spawnMilestoneSign(nextMilestone);
+      nextMilestone += 500;
+    }
+
+    // move world entities left
+    for(const o of obstacles) o.x -= dx;
+    for(const r of rings){ r.x -= dx; r.spin += dt*3.0; }
+    for(const s of signs){ s.x -= dx; }
+
+    // caps
+    if(obstacles.length>18) obstacles = obstacles.slice(-18);
+    if(rings.length>24) rings = rings.slice(-24);
+
+    // clean offscreen
+    obstacles = obstacles.filter(o=>o.x + (o.w||200) > -160);
+    rings = rings.filter(r=>r.x + r.r > -80);
+    signs = signs.filter(s=>s.x + 320 > -160);
+
+    // collisions
+    const hitPad=6;
+    const pRect={x:px-player.w/2+hitPad,y:player.y+10,w:player.w-hitPad*2,h:player.h-18};
+
+    for(const o of obstacles){
+      if(o.type==='bush'){
+        const by = groundY(o.x) - o.h;
+        const bRect={x:o.x+12,y:by+8,w:o.w-24,h:o.h-14};
+        if(rectsOverlap(pRect,bRect)){ endGame(); return; }
+      } else {
+        const gy2 = groundY(o.x);
+        const carRect = {x:o.x, y:gy2 - o.h - o.h*0.55, w:o.w, h:o.h + o.h*0.55};
+        if(rectsOverlap(pRect, carRect)){ endGame(); return; }
+      }
+    }
+
+    for(let i=rings.length-1;i>=0;i--){
+      const r=rings[i];
+      if(circleRectOverlap(r.x,r.y,r.r+7,pRect.x,pRect.y,pRect.w,pRect.h)){
+        rings.splice(i,1);
+        ringsCount++;
+      }
+    }
+
+    metersEl.textContent = Math.floor(distMeters).toString();
+    ringsEl.textContent = ringsCount.toString();
+  }
+
+  function render(now){
+    const mode = envMode();
+    envChip.textContent = 'Ambiente: ' + (mode===0 ? 'Montagna' : 'Città');
+
+    drawBackground(mode, now);
+    drawGround(mode);
+    drawUpcomingPreview();
+
+    // signs
+    for(const s of signs) drawSign(s);
+
+    // rings
+    for(const r of rings) drawRing(r);
+
+    // obstacles
+    for(const o of obstacles){
+      if(o.type==='bush') drawBush(o);
+      else drawCar(o);
+    }
+
+    if(state!==STATE.MENU){
+      drawCheese();
+      drawRunner(player.x(), player.y, player.crouch, player.runT, character);
+    }
+  }
+
+  /* =========================================================
+     INIT
+     ========================================================= */
+  renderLeaderboard(lbMenu, yourBestMenu, null);
+  resize();
+  requestAnimationFrame(frame);
 
 })();
 </script>
