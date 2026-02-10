@@ -801,9 +801,35 @@ faceMarco.onload = () => (facesReady.marco = true);
   }
 
   function drawRunner(px, py, crouch, phase, name){
-    ctx.save();
-    const angSlope = Math.atan(slope());
-    const bodyH = crouch ? 66 : 84;
+    // === TESTA con foto vera (clippata) ===
+ctx.save();
+ctx.beginPath();
+ctx.arc(0, 0, 12, 0, Math.PI * 2);
+ctx.clip();
+
+const face = (name === 'Anna') ? faceAnna : faceMarco;
+
+// Se l'immagine non è ancora pronta, disegna una base neutra
+if (!face.complete || face.naturalWidth === 0) {
+  ctx.fillStyle = '#f2c7a5'; // colore pelle placeholder
+  ctx.beginPath();
+  ctx.arc(0, 0, 12, 0, Math.PI * 2);
+  ctx.fill();
+} else {
+  // Disegna la faccia dentro al cerchio (24x24)
+  ctx.drawImage(face, -12, -12, 24, 24);
+}
+ctx.restore();
+
+// contorno leggero per integrarla meglio
+ctx.save();
+ctx.globalAlpha = 0.22;
+ctx.strokeStyle = 'rgba(0,0,0,0.55)';
+ctx.lineWidth = 2;
+ctx.beginPath();
+ctx.arc(0, 0, 12, 0, Math.PI * 2);
+ctx.stroke();
+ctx.restore();
 
     const stride=28;
     const lift=18;
