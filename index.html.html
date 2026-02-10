@@ -81,6 +81,19 @@
 
 <script>
 (() => {
+  // === REAL FACES (Anna/Marco) ===
+// Metti i file in: assets/Foto Anna.jpg e assets/Foto Marco.jpg
+// Nota: gli spazi nei nomi vanno scritti come %20 nelle URL.
+const faceAnna = new Image();
+faceAnna.src = 'assets/Foto%20Anna.jpg';
+
+const faceMarco = new Image();
+faceMarco.src = 'assets/Foto%20Marco.jpg';
+
+// opzionale: piccoli flag per capire se hanno caricato
+let facesReady = { anna:false, marco:false };
+faceAnna.onload = () => (facesReady.anna = true);
+faceMarco.onload = () => (facesReady.marco = true);
   const canvas = document.getElementById('c');
   const ctx = canvas.getContext('2d');
 
