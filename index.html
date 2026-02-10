@@ -905,7 +905,32 @@
     }
     return {t,inStance,x,y,footAng};
   }
+function drawFaceHead(name){
+  const face = (name === 'Anna') ? faceAnna : faceMarco;
+  const ok = face && face.complete && face.naturalWidth > 0;
 
+  if(!ok) return false;
+
+  // faccia dentro cerchio
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(0, 0, 12, 0, Math.PI * 2);
+  ctx.clip();
+  ctx.drawImage(face, -12, -12, 24, 24);
+  ctx.restore();
+
+  // contorno leggero
+  ctx.save();
+  ctx.globalAlpha = 0.22;
+  ctx.strokeStyle = 'rgba(0,0,0,0.55)';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(0, 0, 12, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.restore();
+
+  return true;
+}
   function drawRunner(px, py, crouch, phase, name){
     ctx.save();
 
